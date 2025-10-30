@@ -1,0 +1,12 @@
+[submodule "fdaPDE"]
+	path = include
+	url = https://github.com/fdaPDE/fdaPDE-cpp
+	branch = stable
+[submodule "fdaPDE-cpp"]
+	path = fdaPDE-cpp
+	url = https://github.com/fdaPDE/fdaPDE-cpp
+	branch = stable
+[submodule "include/fdaPDE-cpp"]
+	path = include/fdaPDE-cpp
+	url = https://github.com/fdaPDE/fdaPDE-cpp
+	branch = stable
