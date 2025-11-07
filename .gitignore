@@ -1,0 +1,8 @@
+# ignore jupyter notebooks
+.ipynb_checkpoints/
+*/.ipynb_checkpoints/*
+jupyter_notebook_config.py
+.jupyter/
+*.nbconvert.ipynb
+*_autosave.ipynb
+*.ipynb
