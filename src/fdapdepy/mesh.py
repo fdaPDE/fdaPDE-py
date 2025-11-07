@@ -65,20 +65,20 @@ class __triangulation:
     def measure(self):
         return self.__mesh.measure()
 
-    def plot(self, ax = None, xlabel = "", ylabel = "", color = None, aspect = 1, show = False, **kwargs):
+    def plot(self, ax = None, xlabel = "", ylabel = "", aspect = 1, show = False, **kwargs):
         import matplotlib.pyplot as plt
 
         if ax is None: ## create new panel if user didn't provide one
             _, ax = plt.subplots()
 
         ## set defaults
-        if color is None:
-            color = "black"
+        if "color" not in kwargs:
+            kwargs["color"] = "black"
+        if "linewidth" not in kwargs:
+            kwargs["linewidth"] = 0.5
         ## plot    
         artists = ax.triplot(
             self.nodes()[:,0], self.nodes()[:,1], self.cells(),
-            color = color,
-            linewidth = 0.5,
             **kwargs
         )
         ax.set_aspect(aspect)
