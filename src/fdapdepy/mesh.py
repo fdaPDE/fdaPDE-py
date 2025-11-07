@@ -16,54 +16,57 @@ def triangulation(nodes, cells, boundary):
     return __triangulation(cpp_backend, local_dim, embed_dim)
 
 class __triangulation:
-    def __init__(self, mesh, local_dim, embed_dim):
+    def __init__(self, cpp_backend, local_dim, embed_dim):
         self.__local_dim = local_dim
         self.__embed_dim = embed_dim
-        self.__mesh = mesh
+        self._cpp_backend = cpp_backend
 
-    def locate(self, locations) :
-        return self.__mesh.locate(locations)
+    def local_dim(self): return self.__local_dim
+    def embed_dim(self): return self.__embed_dim    
+        
+    def locate(self, locations):
+        return self._cpp_backend.locate(locations)
 
     def sample(self, n_samples, seed = None):
         if(seed == None):
             seed = -1 ## set random seed if not specified
-        return self.__mesh.sample(n_samples, seed)
+        return self._cpp_backend.sample(n_samples, seed)
         
     def nodes(self):
-        return self.__mesh.nodes()
+        return self._cpp_backend.nodes()
 
     def edges(self):
-        return self.__mesh.edges()
+        return self._cpp_backend.edges()
 
     def cells(self):
-        return self.__mesh.cells()
+        return self._cpp_backend.cells()
 
     def boundary_nodes(self):
-        return self.__mesh.boundary_nodes()
+        return self._cpp_backend.boundary_nodes()
 
     def boundary_edges(self):
-        return self.__mesh.boundary_edges()
+        return self._cpp_backend.boundary_edges()
 
     def n_nodes(self):
-        return self.__mesh.n_nodes()
+        return self._cpp_backend.n_nodes()
     
     def n_cells(self):
-        return self.__mesh.n_cells()
+        return self._cpp_backend.n_cells()
 
     def n_edges(self):
-        return self.__mesh.n_edges()
+        return self._cpp_backend.n_edges()
 
     def n_boundary_nodes(self):
-        return self.__mesh.n_boundary_nodes()
+        return self._cpp_backend.n_boundary_nodes()
 
     def n_boundary_edges(self):
-        return self.__mesh.n_boundary_edges()
+        return self._cpp_backend.n_boundary_edges()
 
     def bbox(self):
-        return self.__mesh.bbox()
+        return self._cpp_backend.bbox()
 
     def measure(self):
-        return self.__mesh.measure()
+        return self._cpp_backend.measure()
 
     def plot(self, ax = None, xlabel = "", ylabel = "", aspect = 1, show = False, **kwargs):
         import matplotlib.pyplot as plt
@@ -91,3 +94,18 @@ class __triangulation:
             plt.show()
 
         return ax
+    
+    def __str__(self):
+        bbox = self.bbox()
+        
+        out = [
+            "2D triangulation",
+            f"Bounding box:   xmin: {bbox[0, 0]} ymin: {bbox[0, 1]} xmax: {bbox[1, 0]} ymax: {bbox[1, 1]}",
+            f"Number of nodes: {self.n_nodes()}",
+            f"Number of cells: {self.n_cells()}",
+        ]
+
+        return "\n".join(out)
+    
+    def info(self):
+        print(self.__str__())

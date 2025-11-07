@@ -1,6 +1,6 @@
 from ._fe_function import cpp_fe_function_2_2_p1
 
-def fe_function(domain, type, coeff=None):
+def fe_function(domain, fe_type="P1", coeff=None):
     """
     Create a finite element function object.
 
@@ -15,21 +15,19 @@ def fe_function(domain, type, coeff=None):
     FeFunction
         A Python object wrapping the corresponding C++ finite element function.
     """
-    return FeFunction(domain=domain, type=type, coeff=coeff)
+    return FeFunction(domain=domain, type_=type_, coeff=coeff)
 
     
 class FeFunction:
-    def __init__(self, domain, type, coeff=None):
+    def __init__(self, domain, fe_type, coeff=None):
         self._mesh = domain
-        local_dim = domain.local_dim
-        embed_dim = domain.embed_dim
+        local_dim = domain.local_dim()
+        embed_dim = domain.embed_dim()
 
         if local_dim == 2 and embed_dim == 2:
             self._fe_function = cpp_fe_function_2_2_p1(domain)
-        else:
-            raise ValueError(f"Unsupported combination local_dim={local_dim}, embed_dim={embed_dim}")
 
-        self._type = type
+        self._type = fe_type
 
         n_dofs = self._fe_function.n_dofs()
         if coeff is not None:
@@ -68,17 +66,18 @@ class FeFunction:
     def coeff(self):
         return self._fe_function.coeff()
 
-    def coeff(self, c):
+    def set_coeff(self, c):
         import numpy as np
         self._fe_function.set_coeff(np.asarray(c))
 
     def geometry(self):
         return self._mesh
 
-
-    def plot(self, log_scale=True, boundary_nodes=None, cmap="mako", aspect=1.4, show=False):
+    def plot(self, log_scale = True, boundary_nodes = None, cmap = "mako", aspect = 1, show = False):
         import matplotlib.pyplot as plt
+        from matplotlib.tri import Triangulation
         import seaborn as sns
+        import numpy as np
 
         """
         Plot the finite element function over its domain.
@@ -97,15 +96,18 @@ class FeFunction:
             If True, displays the plot; otherwise, returns (fig, ax).
         """
 
-        triangulation = self.geometry._mesh.triangulation()  
-        f_fit = self.fe_function_.coeff().flatten()
+        triangulation = Triangulation(self._mesh.nodes()[:,0], self._mesh.nodes()[:,1], self._mesh.cells())
+        f_fit = self.coeff().flatten()
 
         if not log_scale:
             f_fit = np.exp(f_fit)
 
         fig, ax = plt.subplots()
 
-        tpc = ax.tripcolor(triangulation, f_fit, cmap=sns.color_palette(cmap, as_cmap=True))
+        tpc = ax.tripcolor(
+            triangulation,
+            f_fit, cmap=sns.color_palette(cmap, as_cmap=True)
+        )
 
         if boundary_nodes is not None:
             ax.plot(

@@ -98,6 +98,9 @@ template <int LocalDim, int EmbedDim> class TriangulationBase {
         return quad_nodes;
     }
 
+    const triangulation_t& data() const { return triangulation_; }
+    triangulation_t& data() { return triangulation_; }
+
     ~TriangulationBase() = default;
    protected:
     triangulation_t triangulation_;

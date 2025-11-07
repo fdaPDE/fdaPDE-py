@@ -20,6 +20,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
 #include <fdaPDE/finite_elements.h>
+#include "mesh.h"
 #include "utility.h"
 
 namespace fdapde {
@@ -37,7 +38,8 @@ template <int LocalDim, int EmbedDim, typename FeType> class FeFunction {
    public:
     FeFunction() noexcept = default;
     FeFunction(const pybind11::object& triangulation) :
-        fe_space_(get_obj_as<TriangulationType>(triangulation, "__mesh"), FeType {}), fe_function_(fe_space_) { }   // oppure: *fdapde::py::get_obj_as
+        fe_space_(get_obj_as<py::Triangulation<local_dim, embed_dim>>(triangulation, "_cpp_backend").data(), FeType {}),
+        fe_function_(fe_space_) { }
 
     // observers
     const vector_t& coeff() const { return fe_function_.coeff(); }
