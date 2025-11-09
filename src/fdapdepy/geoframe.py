@@ -162,11 +162,56 @@ def _gf_cpp_access(x, rows, col):
         data_t.FLT32: cpp_backend.flt32_access,
         data_t.INT64: cpp_backend.int64_access,
         data_t.INT32: cpp_backend.int32_access,
-        #data_t.BIN:   cpp_backend.bin_access,
         data_t.STR:   cpp_backend.str_access,
     }
     return access_map[dtype](layer_name, rows, col)
-        
+
+def _gf_cpp_assign(x, rows, col, value): # qui col può essere solo una stringa o un numero
+    import numpy as np
+    cpp_backend = x._cpp_backend
+    layer_name = x.name
+    dtype = cpp_backend.dtype(layer_name, col)
+    value = np.asarray(value)
+    
+    assign_map = {
+        data_t.FLT64: (cpp_backend.flt64_assign, np.float64),
+        data_t.FLT32: (cpp_backend.flt32_assign, np.float32),
+        data_t.INT64: (cpp_backend.int64_assign, np.int64  ),
+        data_t.INT32: (cpp_backend.int32_assign, np.int32  ),
+        data_t.STR:   (cpp_backend.str_assign, np.str_     ),
+    }
+    assign, typ = assign_map[dtype]
+    # if scalar, keep scalar, otherwise np-cast
+    casted_value = value.astype(typ).item() if value.ndim == 0 else value.astype(typ)
+    assign(layer_name, rows, col, casted_value)
+
+import numpy as np
+
+def _gf_cpp_insert(x, col, value):
+    import numpy as np
+    cpp_backend = x._cpp_backend
+    layer_name = x.name
+    nrows = x.rows
+    value = np.asarray(value)
+
+    # expand scalar to full-length vector
+    if value.size == 1:
+        value = np.repeat(value, nrows)
+
+    if np.issubdtype(value.dtype, np.number):
+        if value.ndim == 2:  # matrix-like
+            if np.issubdtype(value.dtype, np.floating):
+                cpp_backend.flt64_blk_insert(layer_name, col, value)
+            else:
+                cpp_backend.int64_blk_insert(layer_name, col, value)
+        else:  # 1D numeric
+            if np.issubdtype(value.dtype, np.floating):
+                cpp_backend.flt64_insert(layer_name, col, value)
+            else:
+                cpp_backend.int64_insert(layer_name, col, value)
+    elif np.issubdtype(value.dtype, np.str_):
+        cpp_backend.str_insert(layer_name, col, value)
+
 class _data_layer:
     def __init__(self, geoframe, name: str, typ: str):
         self._geoframe = geoframe
@@ -186,6 +231,7 @@ class _data_layer:
             if isinstance(rows, (list, tuple, np.ndarray)) and np.array(rows).dtype == bool:
                 rows = list(np.where(rows)[0]) # apply boolean filter
             else:
+                rows = [rows] if isinstance(rows, int) else rows
                 rows = [r for r in rows]
         # subsetting columns
         if cols is None:
@@ -204,21 +250,18 @@ class _data_layer:
         gf._layer_map = {self._name: self._typ}
         return gf
 
-    # def set(self, rows, col, value):
-    #     """Set values in the layer."""
-    #     dtype = self._ptr.dtype(self._name, col)
-
-    #     # Prepare row indices
-    #     if rows is None:
-    #         rows = list(range(self._ptr.rows(self._name)))
-    #     else:
-    #         rows = [r for r in rows]
-
-    #     # Broadcast scalar values
-    #     if np.isscalar(value):
-    #         value = [value] * len(rows)
-
-    #     _gf_cpp_assign(self, rows, col, value)
+    def set(self, rows, col, value):
+        dtype = self._cpp_backend.dtype(self._name, col)
+        # prepare row subsetting vector
+        if rows is None:
+            rows = list(range(self._cpp_backend.rows(self._name)))
+        else:
+            rows = [rows] if isinstance(rows, int) else rows
+            rows = [r for r in rows]
+        # broadcast scalar values
+        if np.isscalar(value):
+            value = [value] * len(rows)
+        _gf_cpp_assign(self, rows, col, value)
 
     @property
     def name(self):
@@ -354,7 +397,14 @@ class _point_layer(_data_layer):
             i = None if isinstance(i, slice) else i
             j = None if isinstance(j, slice) else j
             return self.get(i, j)
-    
+
+    def __setitem__(self, key, value):
+        if isinstance(key, tuple) and len(key) == 2:
+            i, j = key
+            i = None if isinstance(i, slice) else i
+            j = None if isinstance(j, slice) else j
+            return self.set(i, j, value)            
+        
     @property
     def coordinates(self): return self._cpp_backend.point_coordinates(self._name)
 
