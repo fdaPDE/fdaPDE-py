@@ -132,10 +132,10 @@ class _geoframe:
                     out.append(f"First {n_preview} data rows:")
 
                     if layer_type == "areal":
-                        layer = _areal_layer(self._cpp_backend, self._domain, name, "areal") ## ma sà già che è areale, perchè glielo devo dire?
+                        layer = _areal_layer(self, name, "areal")
                         out.append(str(layer))
                     elif layer_type == "point":
-                        layer = _point_layer(self._cpp_backend, self._domain, name, "point")
+                        layer = _point_layer(self, name, "point")
                         out.append(str(layer))
                         out.append("")
 
@@ -146,11 +146,10 @@ class _geoframe:
             raise KeyError(f"Layer '{layer_name}' not found.")
 
         layer_type = self._layer_map[layer_name]
-
         if layer_type == "areal":
-            return _areal_layer(self._cpp_backend, self._domain, layer_name, "areal")
-        elif layer_type == "point":
-            return _point_layer(self._cpp_backend, self._domain, layer_name, "point")
+            return _areal_layer(self, layer_name, "areal")
+        if layer_type == "point":
+            return _point_layer(self, layer_name, "point")
 
 ## low-level typed dispatch logic
 def _gf_cpp_access(x, rows, col):
@@ -169,38 +168,41 @@ def _gf_cpp_access(x, rows, col):
     return access_map[dtype](layer_name, rows, col)
         
 class _data_layer:
-    def __init__(self, cpp_backend, mesh, name: str, typ: str):
-        self._cpp_backend = cpp_backend
-        self._mesh = mesh
+    def __init__(self, geoframe, name: str, typ: str):
+        self._geoframe = geoframe
+        self._cpp_backend = geoframe._cpp_backend
+        self._mesh = geoframe._domain
         self._name = name
         if typ not in ("point", "areal"):
             raise ValueError("Invalid type: must be 'point' or 'areal'.")
         self._typ = typ
 
     def get(self, rows = None, cols = None):
-        """Subset the layer, returning a new GeoFrame-like object."""
-        # Handle row indices
+        import numpy as np
+        # subsetting rows
         if rows is None:
             rows = list(range(self._cpp_backend.rows(self._name)))
-        elif isinstance(rows, (list, tuple, np.ndarray)) and np.array(rows).dtype == bool:
-            rows = list(np.where(rows)[0])
         else:
-            rows = [r for r in rows]
-
-        # Handle column names
+            if isinstance(rows, (list, tuple, np.ndarray)) and np.array(rows).dtype == bool:
+                rows = list(np.where(rows)[0]) # apply boolean filter
+            else:
+                rows = [r for r in rows]
+        # subsetting columns
         if cols is None:
             cols = self._cpp_backend.colnames(self._name)
-        elif not all(isinstance(c, str) for c in cols):
-            all_cols = self._cpp_backend.colnames(self._name)
-            cols = [all_cols[c] for c in cols]
         else:
-            cols = list(cols)
+            if not all(isinstance(c, str) for c in cols): ## cosa accade se alcune colonne sono per indice e altre per nome? dovermmo abortire
+                all_cols = self._cpp_backend.colnames(self._name)
+                cols = [all_cols[c] for c in cols]
+            else:
+                cols = cols if isinstance(cols, list) else [cols]
 
-        new_ptr = cpp_geoframe_2_2(self._cpp_backend, self._name, rows, cols)
-        new_gf = _geoframe.__new__(_geoframe) ## create geoframe bypassing __init__
-        new_gf._ptr = new_ptr
-        new_gf._layer_map = {self._name: self._type}
-        return new_gf
+        cpp_backend = cpp_geoframe_2_2(self._geoframe, self._name, rows, cols)
+        gf = _geoframe.__new__(_geoframe) # create geoframe bypassing __init__
+        gf._cpp_backend = cpp_backend
+        gf._domain = self._mesh
+        gf._layer_map = {self._name: self._typ}
+        return gf
 
     # def set(self, rows, col, value):
     #     """Set values in the layer."""
@@ -219,19 +221,19 @@ class _data_layer:
     #     _gf_cpp_assign(self, rows, col, value)
 
     @property
-    def name(self) -> str:
+    def name(self):
         return self._name
     @property
-    def rows(self) -> int:
+    def rows(self):
         return self._cpp_backend.rows(self._name)
     @property
-    def cols(self) -> int:
+    def cols(self):
         return len(self._cpp_backend.colnames(self._name))
     @property
     def colnames(self):
         return self._cpp_backend.colnames(self._name)
 
-    def col(self, name) :
+    def col(self, name):
         return _gf_cpp_access(self, range(self.rows), name)
         
 class _point_layer(_data_layer):
@@ -345,6 +347,13 @@ class _point_layer(_data_layer):
 
         fig.tight_layout(pad = 2)
         return ax
+
+    def __getitem__(self, key):
+        if isinstance(key, tuple) and len(key) == 2:
+            i, j = key
+            i = None if isinstance(i, slice) else i
+            j = None if isinstance(j, slice) else j
+            return self.get(i, j)
     
     @property
     def coordinates(self): return self._cpp_backend.point_coordinates(self._name)
