@@ -1,5 +1,4 @@
 from ._geoframe import cpp_geoframe_2_2
-
 from enum import IntEnum
 
 class layer_t(IntEnum):
@@ -35,16 +34,16 @@ class _geoframe:
             raise ValueError(f"Layer {layer} already exists")
 
         # load data in homogeneous structure
-        env = {"data_": {"int_data": {}, "dbl_data": {}, "str_data": {}}}
+        env = {"int_data": {}, "dbl_data": {}, "str_data": {}}
         def load(a, b, colname):
             """Copies 'a' inside 'b', depending on a's type"""
             import numpy as np
             if isinstance(a, (float, np.floating, np.ndarray)) and np.issubdtype(np.array(a).dtype, np.floating):
-                b["data_"]["dbl_data"][colname] = np.asarray(a)
+                b["dbl_data"][colname] = np.asarray(a)
             elif isinstance(a, (int, np.integer, np.ndarray)) and np.issubdtype(np.array(a).dtype, np.integer):
-                b["data_"]["int_data"][colname] = np.asarray(a)
+                b["int_data"][colname] = np.asarray(a)
             elif isinstance(a, (str, np.str_)) or (isinstance(a, np.ndarray) and np.issubdtype(a.dtype, np.str_)):
-                b["data_"]["str_data"][colname] = np.asarray(a)
+                b["str_data"][colname] = np.asarray(a)
 
         if data is not None:
             import numpy as np
@@ -55,7 +54,7 @@ class _geoframe:
                     n_col = 1 if data.ndim == 1 else data.shape[1]
                     colnames = [f"V{i+1}" for i in range(n_col)] # defaults column names
                     # normalize data to 2D ndarray
-                    data = np.atleast_2d(data).T
+                    data = np.atleast_2d(data).T if data.ndim == 1 else data
                 else:
                     n_col = data.shape[1]
                     # use dataframe colnames or set to default
@@ -65,10 +64,7 @@ class _geoframe:
                 for i in range(n_col):
                     colname = colnames[i]
                     if isinstance(geo, (str, list)):
-                        if isinstance(geo, str):
-                            skip_cols = [geo]
-                        else:
-                            skip_cols = geo
+                        skip_cols = [geo] if isinstance(geo, str) else geo
                         if colname not in skip_cols:
                             load(data[:, i] if isinstance(data, np.ndarray) else data.iloc[:, i].to_numpy(),
                                  env, colname)
@@ -79,8 +75,8 @@ class _geoframe:
         # handle geometry information
         if geo is None:
             if typ != "point":
-                raise ValueError("Missing geometry.")
-            self._cpp_backend.insert_scalar_point_layer_nodes(layer, 0, env["data_"])
+                raise ValueError("Missing geometry.")            
+            self._cpp_backend.insert_scalar_point_layer_nodes(layer, 0, env)
             self._layer_map[layer] = "point"
         else:
             import numpy as np
@@ -91,12 +87,12 @@ class _geoframe:
             else:
                 geo_ = np.asarray(geo)
 
-            if type_ == "point":
-                self._cpp_backend.insert_scalar_point_layer(layer, geo_, env["data_"])
+            if typ == "point":
+                self._cpp_backend.insert_scalar_point_layer(layer, geo_, env)
                 self._layer_map[layer] = "point"
 
-            elif type_ == "areal":
-                self._cpp_backend.insert_scalar_areal_layer(layer, geo_, env["data_"])
+            elif typ == "areal":
+                self._cpp_backend.insert_scalar_areal_layer(layer, geo_, env)
                 self._layer_map[layer] = "areal"
 
             else:
@@ -144,7 +140,6 @@ class _geoframe:
                         out.append("")
 
         return "\n".join(out)
-
 
     def __getitem__(self, layer_name: str):
         if layer_name not in self._layer_map:
@@ -223,13 +218,36 @@ class _data_layer:
 
     #     _gf_cpp_assign(self, rows, col, value)
 
+    @property
+    def name(self) -> str:
+        return self._name
+    @property
+    def rows(self) -> int:
+        return self._cpp_backend.rows(self._name)
+    @property
+    def cols(self) -> int:
+        return len(self._cpp_backend.colnames(self._name))
+    @property
+    def colnames(self):
+        return self._cpp_backend.colnames(self._name)
+
+    def col(self, name) :
+        return _gf_cpp_access(self, range(self.rows), name)
+        
+class _point_layer(_data_layer):
+
     def __str__(self):
-        """Pretty print the data layer."""
         out = []
         colnames = self._cpp_backend.colnames(self._name)
-        nrows = min(5, self._cpp_backend.rows(self._name))
-
-        # Collect data
+        nrows = min(6, self._cpp_backend.rows(self._name))
+        locations = self.coordinates[:nrows]
+        
+        # prepare display
+        # first column display geometrical information
+        geo = [f"({coord[0]:.6f}, {coord[1]:.6f})" for coord in locations]
+        geo_column = ["", "<POINT>"] + geo
+        out.append(geo_column)
+        # display data column
         for colname in colnames:
             v = _gf_cpp_access(self, range(nrows), colname)
             dtype = self._cpp_backend.dtype(self._name, colname)
@@ -243,43 +261,91 @@ class _data_layer:
                 data_t.STR: "<str>",
             }
             type_str = dtype_map.get(dtype, "<unk>")
-            formatted_values = [f"{val:.6g}" for val in v]
+            formatted_values = [f"{val:.6f}" for val in v]
             column = [colname, type_str] + formatted_values
             out.append(column)
 
-        # Column alignment
+        # column alignment
         col_widths = [max(len(s) for s in col) + 1 for col in out]
         lines = []
 
         # Header
-        header = "".join(col.ljust(w) for col, w in zip([c[0] for c in out], col_widths))
+        header = "".join(col.rjust(w) for col, w in zip([c[0] for c in out], col_widths))
         lines.append(header)
-
-        # Types (with color)
         type_line = "".join(
-            f"\033[0;31m{c[1].ljust(w)}\033[0m" for c, w in zip(out, col_widths)
+            f"\033[0;31m{c[1].rjust(w)}\033[0m" for c, w in zip(out, col_widths)
         )
         lines.append(type_line)
 
-        # Rows
+        # send to output stream
         for i in range(2, len(out[0])):
-            row_line = "".join(out[j][i].ljust(col_widths[j]) for j in range(len(out)))
+            row_line = "".join(out[j][i].rjust(col_widths[j]) for j in range(len(out)))
             lines.append(row_line)
 
         return "\n".join(lines)
 
-    @property
-    def name(self) -> str: return self._name
-    @property
-    def rows(self) -> int: return self._ptr.rows(self._name)
-    @property
-    def cols(self) -> int: return len(self._ptr.colnames(self._name))
-    @property
-    def colnames(self): return self._ptr.colnames(self._name)
+    def plot(self, ax = None, aspect = 1, boundary_nodes = None, **kwargs):
+        import matplotlib.pyplot as plt
+        import numpy as np
+        import seaborn as sns
+        import math
 
+        colnames = self._cpp_backend.colnames(self._name)
+        ncols = len(colnames)
+        locations = self.coordinates
+
+        ## defaults
+        if "cmap" not in kwargs:
+            kwargs["cmap"] = sns.color_palette("mako", as_cmap = True)
+        if "s" not in kwargs:
+            kwargs["s"] = 1
+        if "edgecolor" not in kwargs:
+            kwargs["edgecolor"] = "none"
+            
+        # compute grid layout
+        ncols_grid = int(math.ceil(math.sqrt(ncols)))
+        nrows_grid = int(math.ceil(ncols / ncols_grid))
+        
+        if ax is None: ## create new panel if user didn't provide one
+            fig, ax = plt.subplots(nrows_grid, ncols_grid)
+
+        # normalize ax to ndarray
+        if not isinstance(ax, np.ndarray):
+            ax = np.array([ax])
+        else:
+            ax = ax.flatten()
+        
+        # plot each column
+        for i, colname in enumerate(colnames):
+            # data scatter
+            sc = ax[i].scatter(
+                x = locations[:, 0],
+                y = locations[:, 1],
+                c = self.col(colname),
+                **kwargs
+            )
+
+            ## plot domain boundary
+            if boundary_nodes is not None:
+                ax[i].plot(
+                    np.concatenate((boundary_nodes[:, 0], [boundary_nodes[0, 0]])),
+                    np.concatenate((boundary_nodes[:, 1], [boundary_nodes[0, 1]])),
+                    color = "black",
+                    linewidth = 1
+                )
+            ax[i].set_title(colname)
+            ax[i].set_aspect(aspect)
+            
+            # set colorbar
+            cbar = ax[i].figure.colorbar(sc, ax = ax[i], fraction = 0.03)
+
+        # hide unused axes
+        for j in range(i + 1, len(ax)):
+            ax[j].set_visible(False)
+
+        fig.tight_layout(pad = 2)
+        return ax
     
-class _point_layer(_data_layer):
-
     @property
     def coordinates(self): return self._cpp_backend.point_coordinates(self._name)
 

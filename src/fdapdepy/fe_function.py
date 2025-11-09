@@ -73,7 +73,7 @@ class FeFunction:
         return self._mesh
 
     def plot(self, ax = None, xlabel = "", ylabel = "", title = "", aspect = 1, show = False, log_scale = True,
-             **kwargs):
+             boundary_nodes = None, **kwargs):
         import matplotlib.pyplot as plt
         import matplotlib.tri as tri
         import numpy as np
@@ -97,13 +97,13 @@ class FeFunction:
             **kwargs
         )
         ## plot domain boundary
-        boundary_nodes = self._mesh.nodes()[self._mesh.boundary_nodes().flatten(), :]
-        ax.plot(
-            np.concatenate((boundary_nodes[:, 0], [boundary_nodes[0, 0]])),
-            np.concatenate((boundary_nodes[:, 1], [boundary_nodes[0, 1]])),
-            color = "black",
-            linewidth = 1
-        )
+        if boundary_nodes is not None:
+            ax.plot(
+                np.concatenate((boundary_nodes[:, 0], [boundary_nodes[0, 0]])),
+                np.concatenate((boundary_nodes[:, 1], [boundary_nodes[0, 1]])),
+                color = "black",
+                linewidth = 1
+            )
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
         ax.set_title(title)
