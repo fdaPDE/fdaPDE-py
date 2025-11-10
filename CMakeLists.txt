@@ -20,6 +20,7 @@ set(WARNING_FLAGS "")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g -march=x86-64 ${WARNING_FLAGS}")
 
 include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}/include/fdaPDE-cpp/
   ${CMAKE_CURRENT_SOURCE_DIR}/include/fdaPDE-cpp/fdaPDE/core/
   ${CMAKE_CURRENT_SOURCE_DIR}/src/
 )
