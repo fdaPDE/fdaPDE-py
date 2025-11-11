@@ -20,7 +20,7 @@
 namespace fdapde {
 namespace py {
 
-// clang-format on
+// clang-format off
   
 #define fe_ls_elliptic_pybind_interface(LocalDim, EmbedDim, Model)                                                     \
      def("fit"    , &fe_ls_elliptic<LocalDim, EmbedDim, Model>::fit    )                                               \

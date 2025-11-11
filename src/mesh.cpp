@@ -17,6 +17,8 @@
 #include <pybind11/pybind11.h>
 #include "include/mesh.h"
 
+// clang-format off
+
 namespace fdapde {
 namespace py {
 

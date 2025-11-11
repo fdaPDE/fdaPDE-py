@@ -20,6 +20,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
 #include <fdaPDE/geoframe.h>
+
 #include "mesh.h"
 #include "utility.h"
 
@@ -38,12 +39,12 @@ template <typename Triangulation> class GeoFrame {
     using geoframe_t = fdapde::GeoFrame<TriangulationType>;
 
     GeoFrame(const pybind11::object& triangulation) :
-        data_(get_obj_as<py::Triangulation<local_dim, embed_dim>>(triangulation, "_cpp_backend").data()) { }
+        data_(get_obj_as<py::Triangulation<local_dim, embed_dim>>(triangulation, "_ptr").data()) { }
     // constrcut from an existing geoframe using layer subsetting
     GeoFrame(
       const pybind11::object& geoframe, const std::string& layer_name, const std::vector<int>& rows,
       const std::vector<std::string>& cols) {
-        geoframe_t& gf = get_obj_as<py::GeoFrame<Triangulation>>(geoframe, "_cpp_backend").data();
+        geoframe_t& gf = get_obj_as<py::GeoFrame<Triangulation>>(geoframe, "_ptr").data();
         data_ = geoframe_t(gf.template triangulation<0>());
         auto make_ = [&]<typename GeoInfo>(GeoInfo) {
             auto row_filter = geo_cast<GeoInfo>(gf[layer_name]).select(rows.begin(), rows.end());

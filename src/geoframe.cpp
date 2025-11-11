@@ -67,8 +67,6 @@ using matrix_t = Eigen::Matrix<double, Dynamic, Dynamic>;
       .def("areal_polygons"                  , &GeoFrame<Triangulation>::areal_polygons                     )          \
       .def("incidence_matrix"                , &GeoFrame<Triangulation>::incidence_matrix                   )
 	      
-// colnames_all can be done directly from R
-	      
 using cpp_geoframe_2_2 = GeoFrame<fdapde::Triangulation<2, 2>>;
 PYBIND11_MODULE(_geoframe, m) {
     using triangulation_2_2 = fdapde::Triangulation<2, 2>;

@@ -20,6 +20,7 @@
 #include <pybind11/pybind11.h>
 #include <pybind11/eigen.h>
 #include <fdaPDE/models.h>
+
 #include "geoframe.h"
 #include "utility.h"
 
@@ -38,7 +39,7 @@ template <int LocalDim, int EmbedDim, typename Model> class fe_ls_elliptic {
     fe_ls_elliptic() noexcept = default;
     fe_ls_elliptic(
       const std::string& formula, const pybind11::object& geoframe, const std::optional<pybind11::dict>& penalty) {
-        const GeoFrame& gf = get_obj_as<py::GeoFrame<Triangulation>>(geoframe, "_cpp_backend").data();
+        const GeoFrame& gf = get_obj_as<py::GeoFrame<Triangulation>>(geoframe, "_ptr").data();
         const Triangulation& D = gf.template triangulation<0>();
         FeSpace Vh(D, P1<1>);
 

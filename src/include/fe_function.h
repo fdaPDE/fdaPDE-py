@@ -38,7 +38,7 @@ template <int LocalDim, int EmbedDim, typename FeType> class FeFunction {
    public:
     FeFunction() noexcept = default;
     FeFunction(const pybind11::object& triangulation) :
-        fe_space_(get_obj_as<py::Triangulation<local_dim, embed_dim>>(triangulation, "_cpp_backend").data(), FeType {}),
+        fe_space_(get_obj_as<py::Triangulation<local_dim, embed_dim>>(triangulation, "_ptr").data(), FeType {}),
         fe_function_(fe_space_) { }
 
     // observers
@@ -70,8 +70,6 @@ template <int LocalDim, int EmbedDim, typename FeType> class FeFunction {
     FeSpaceType fe_space_;
     fdapde::FeFunction<FeSpaceType> fe_function_;
 };
-
-
 
 }   // namespace py
 }   // namespace fdapde
