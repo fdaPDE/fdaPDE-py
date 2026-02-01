@@ -1,6 +1,6 @@
 <div align="center"> <h1> fdaPDE-py </h1>
 
-<h5> The python wrapper to the fdaPDE library </br> Physics-Informed Spatial and Functional Data Analysis. </h5> </div>
+<h5> The python wrapper to the fdaPDE library </br> Physics-Informed Spatial and Functional Data Analysis </h5> </div>
 
 ## Installation
 To install fdaPDE-py, first make sure to have Git and:

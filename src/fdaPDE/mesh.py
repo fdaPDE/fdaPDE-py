@@ -14,20 +14,20 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from ._mesh import cpp_triangulation_2_2
+from ._mesh import cpp_mesh_2_2
 
-def triangulation(nodes, cells, boundary):
+def mesh(nodes, cells, boundary):
     local_dim = cells.shape[1] - 1
     embed_dim = nodes.shape[1]
     ## instantiate cpp backend
     data = {"nodes": nodes, "cells": cells, "boundary": boundary}
     ptr = None
     if (local_dim == 2 and embed_dim == 2):
-        ptr = cpp_triangulation_2_2(data)
+        ptr = cpp_mesh_2_2(data)
         
-    return _triangulation(ptr, local_dim, embed_dim)
+    return _mesh(ptr, local_dim, embed_dim)
 
-class _triangulation:
+class _mesh:
     def __init__(self, ptr, local_dim, embed_dim):
         self._local_dim = local_dim
         self._embed_dim = embed_dim
@@ -124,7 +124,7 @@ class _triangulation:
     def __str__(self):
         bbox = self.bbox
         out = [
-            "2D triangulation",
+            "2D mesh",
             f"Bounding box:   xmin: {bbox[0, 0]} ymin: {bbox[0, 1]} xmax: {bbox[1, 0]} ymax: {bbox[1, 1]}",
             f"Number of nodes: {self.n_nodes}",
             f"Number of cells: {self.n_cells}",

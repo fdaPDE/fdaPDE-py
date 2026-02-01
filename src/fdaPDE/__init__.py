@@ -14,8 +14,10 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .mesh import triangulation
+from .mesh import mesh
 from .geoframe import geoframe
 from .fe_function import fe_function
+from .sr import sr
+from .gsr import gsr
 from .qsr import qsr
 from .penalty import fe_elliptic

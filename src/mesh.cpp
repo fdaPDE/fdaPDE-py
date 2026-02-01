@@ -47,8 +47,8 @@ namespace py {
 
 using cpp_triangulation_2_2 = Triangulation<2, 2>;
 PYBIND11_MODULE(_mesh, m) {
-    pybind11::class_<TriangulationBase<2, 2>>(m, "cpp_triangulation_base").triangulation_pybind_interface(2, 2);
-    pybind11::class_<cpp_triangulation_2_2, TriangulationBase<2, 2>>(m, "cpp_triangulation_2_2")
+    pybind11::class_<TriangulationBase<2, 2>>(m, "cpp_mesh_base").triangulation_pybind_interface(2, 2);
+    pybind11::class_<cpp_triangulation_2_2, TriangulationBase<2, 2>>(m, "cpp_mesh_2_2")
       .def(pybind11::init<pybind11::dict>()) 
       .def("neighbors"                , &Triangulation<2, 2>::neighbors                )
       .def("edges"                    , &Triangulation<2, 2>::edges                    )

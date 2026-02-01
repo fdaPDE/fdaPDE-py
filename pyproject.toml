@@ -1,14 +1,21 @@
 [build-system]
-requires = ["scikit-build-core>=0.3.3", "pybind11", "NumPy", "matplotlib"]
+requires = [
+  "scikit-build-core",
+  "pybind11",
+  "numpy"
+]
 build-backend = "scikit_build_core.build"
 
 [project]
 name = "fdaPDE"
-version = "1.0.0"
+version = "2.0.0"
 description="The python wrapper to the fdaPDE library for physics-informed spatial and functional data analysis."
 readme = "README.md"
+dependencies = ["numpy", "matplotlib"]
 authors = [
   { name = "Alessandro Palummo", email = "alessandro.palummo@polimi.it" },
-  { name = "Ilenia Di Battista" },
+  { name = "Ilenia Di Battista", email = "ilenia.dibattista@polimi.it"  },
 ]
-requires-python = ">=3.7"
+requires-python = ">=3.14"
+license = "GPL-3.0-or-later"
+license-files = ["LICEN[CS]E*"]

@@ -23,18 +23,6 @@ find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
 find_package(pybind11 CONFIG REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-# helper function to create a pybind11 module
-function(add_fdapde_module name filepath)
-  message(STATUS "Adding Python module: ${name} (${filepath})")
-
-  python_add_library(${name} MODULE ${filepath} WITH_SOABI)
-  target_link_libraries(${name} PRIVATE pybind11::module Eigen3::Eigen)
-  target_compile_definitions(${name} PRIVATE VERSION_INFO="${PROJECT_VERSION}")
-  set_target_properties(${name} PROPERTIES OUTPUT_NAME "${name}")
-
-  install(TARGETS ${name} DESTINATION fdaPDE)
-endfunction()
-
 # automatically find all .cpp files in src/
 file(GLOB MODULE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
 
