@@ -70,12 +70,42 @@ template <int LocalDim, int EmbedDim, typename Model> class fe_ls_elliptic {
 
     // fitting
     void fit(double lambda) { model_.fit(lambda); }
+    pybind11::dict fit_gcv(const pybind11::dict& params) {
+        int mc_samples = params["mc_samples"].cast<int>();
+        int seed = params["seed"].cast<int>();
+        auto gcv = model_.gcv(edf_cache_, mc_samples, seed);
+
+        double optimum = std::numeric_limits<double>::quiet_NaN();
+        std::vector<double> values;
+        std::vector<double> points;
+	std::string opt = params["opt"].cast<std::string>();
+	
+        if (opt == "grid") {
+            // unpack optimization parameters
+            std::vector<double> lambda_grid = params["grid"].cast<std::vector<double>>();
+            points = lambda_grid;
+            GridSearch<1> optimizer;
+            optimizer.optimize(gcv, lambda_grid);
+            optimum = optimizer.optimum()[0];
+            values = optimizer.values();
+        }
+        // cache update
+        edf_cache_.insert(gcv.edf_cache().begin(), gcv.edf_cache().end());
+        model_.fit(optimum);
+        pybind11::dict result;
+        result["optimum"] = optimum;
+        result["values"] = values;
+        result["points"] = points;
+        return result;
+    }
     // observers
     const vector_t& f() const { return model_.f(); }
     const vector_t& beta() const { return model_.beta(); }
     vector_t fitted() const { return model_.fitted(); }
    protected:
     Model model_;
+    using edf_cache_t = std::unordered_map<std::array<double, 1>, double, internals::std_array_hash<double, 1>>;
+    edf_cache_t edf_cache_;
 };
 
 }   // namespace py

@@ -24,6 +24,7 @@ namespace py {
   
 #define fe_ls_elliptic_pybind_interface(LocalDim, EmbedDim, Model)                                                     \
      def("fit"    , &fe_ls_elliptic<LocalDim, EmbedDim, Model>::fit    )                                               \
+    .def("fit_gcv", &fe_ls_elliptic<LocalDim, EmbedDim, Model>::fit_gcv)                                               \
     .def("f"      , &fe_ls_elliptic<LocalDim, EmbedDim, Model>::f      )                                               \
     .def("beta"   , &fe_ls_elliptic<LocalDim, EmbedDim, Model>::beta   )                                               \
     .def("fitted" , &fe_ls_elliptic<LocalDim, EmbedDim, Model>::fitted )

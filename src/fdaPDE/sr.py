@@ -64,9 +64,14 @@ class _sr:
                     
             self._ptr = cpp_sr_2_2(formula, data, params)
 
-    def fit(self, lambda_):
-        self._ptr.fit(lambda_)
+    def fit(self, lambda_ = None, calibration_ = None):
+        r = None
+        if calibration_ == None:
+            self._ptr.fit(lambda_)
+        else:
+            r = self._ptr.fit_gcv(calibration_)
         self._f.set_coeff(self._ptr.f())
+        if r != None: return r 
 
     @property
     def f(self):
