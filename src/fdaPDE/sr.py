@@ -60,7 +60,10 @@ class _sr:
                 if value is None:
                     params[name] = np.zeros((n_quad_nodes, size))
                 else:
-                    params[name] = np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
+                    if callable(value):
+                        params[name] = np.asarray(value(quad_nodes))
+                    else:
+                        params[name] = np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
                     
             self._ptr = cpp_sr_2_2(formula, data, params)
 
