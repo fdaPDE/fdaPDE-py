@@ -35,10 +35,8 @@ class FeFunction:
                 raise ValueError("Invalid coefficient vector dimensions.")
             self._ptr.set_coeff(np.array(coeff, dtype=np.float64, order="C"))
         else:
-            #default to zero coefficients
-            self._ptr.set_coeff(
-                np.zeros((n_dofs), dtype=np.float64, order="C")
-            )
+            # default to zero coefficients
+            self._ptr.set_coeff(np.zeros((n_dofs), dtype=np.float64, order="C"))
 
     @property
     def n_dofs(self):
@@ -72,7 +70,9 @@ class FeFunction:
         self._ptr.set_coeff(np.asarray(c))
 
     def eval(self, locations):
-        return self._ptr.grid_eval(np.asarray(locations))
+        return self._ptr.grid_eval(
+            np.asarray(locations), self._domain.locate(locations)
+        )
 
     def plot(
         self,
@@ -122,3 +122,102 @@ class FeFunction:
         cbar = ax.figure.colorbar(tpc, ax=ax, fraction=0.03)
 
         return ax
+
+    def mapplot(
+        self,
+        boundary_nodes,
+        nx=200,
+        ny=200,
+        cmap_name="Blues",
+        opacity=1.0,
+        layer_name="f",
+        zoom_start=7,
+        tiles="cartodb positron",
+    ):
+
+        import folium
+        import matplotlib
+        import matplotlib.colors as mcolors
+        import branca.colormap as bc
+        from folium.raster_layers import ImageOverlay
+        from shapely.geometry import Point, Polygon
+        
+        # evaluate fe function on regular fine grid
+        lat_nodes = self._domain.nodes[:, 1]
+        lon_nodes = self._domain.nodes[:, 0]
+
+        lat_lin = np.linspace(lat_nodes.min(), lat_nodes.max(), ny)
+        lon_lin = np.linspace(lon_nodes.min(), lon_nodes.max(), nx)
+        LAT, LON = np.meshgrid(lat_lin, lon_lin)
+        grid_points = np.column_stack((LON.ravel(), LAT.ravel()))
+
+        # evaluate
+        f_eval = np.asarray(self._ptr.grid_eval(grid_points))
+        f_mat = f_eval.reshape(ny, nx)
+
+        boundary_nodes_latlon = np.asarray(boundary_nodes)[:, [1, 0]]
+        domain_poly = Polygon(boundary_nodes_latlon)
+
+        mask = np.array(
+            [
+                domain_poly.contains(Point(x, y))
+                for x, y in zip(LAT.ravel(), LON.ravel())
+            ]
+        ).reshape(LAT.shape)
+
+        f_mat[~mask] = np.nan
+
+        f_grid = np.flipud(f_mat.T)
+
+        vmin = np.nanmin(f_grid)
+        vmax = np.nanmax(f_grid)
+
+        cmap = matplotlib.colormaps[cmap_name]
+        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+        rgba_img = cmap(norm(f_grid))
+        rgba_img = (rgba_img * 255).astype(np.uint8)
+
+        bounds = [
+            [lat_nodes.min(), lon_nodes.min()],  # SW
+            [lat_nodes.max(), lon_nodes.max()],  # NE
+        ]
+
+        m = folium.Map(
+            location=[lat_nodes.mean(), lon_nodes.mean()],
+            zoom_start=zoom_start,
+            tiles=tiles,
+        )
+
+        ImageOverlay(
+            image=rgba_img,
+            bounds=bounds,
+            opacity=opacity,
+            name=layer_name,
+            interactive=True,
+        ).add_to(m)
+
+        domain_fg = folium.FeatureGroup(name="domain", show=True)
+
+        folium.Polygon(
+            locations=boundary_nodes_latlon,
+            color="black",
+            weight=2,
+            fill=False,
+            name="domain",
+        ).add_to(domain_fg)
+
+        domain_fg.add_to(m)
+
+        colormap = bc.LinearColormap(
+            colors=[cmap(i) for i in np.linspace(0, 1, 256)],
+            vmin=vmin,
+            vmax=vmax,
+            caption=layer_name,
+        )
+
+        colormap.add_to(m)
+
+        folium.LayerControl().add_to(m)
+
+        return m

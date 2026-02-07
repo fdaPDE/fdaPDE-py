@@ -40,7 +40,7 @@ def fe_elliptic(K=None, b=None, c=None, u=None):
 
 
 class SRPDE:
-    def __init__(self, formula, data, penalty):
+    def __init__(self, formula, data, penalty=None):
         import __main__
 
         # parse formula and detect spatial field object
@@ -93,7 +93,7 @@ class SRPDE:
                             np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
                             if size > 1
                             else np.tile(
-                                np.asarray(value).flatten(), (n_quad_nodes, 1)
+                                    np.asarray(value).flatten(), (n_quad_nodes, 1)
                             ).reshape(-1)
                         )
 
@@ -123,7 +123,7 @@ class SRPDE:
 
 
 class GSRPDE:
-    def __init__(self, formula, data, family, penalty):
+    def __init__(self, formula, data, family, penalty=None):
         import __main__
 
         # parse formula and detect spatial field object
@@ -206,7 +206,7 @@ class GSRPDE:
 
     
 class QSRPDE:
-    def __init__(self, formula, data, level, penalty):
+    def __init__(self, formula, data, level, penalty=None):
         import __main__
 
         # parse formula and detect spatial field object

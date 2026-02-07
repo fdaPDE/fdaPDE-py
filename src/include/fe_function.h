@@ -54,7 +54,8 @@ class FeFunction {
             };
             v.grid_eval = [](const erased_storage& storage, const matrix_t& ps) -> vector_t {
                 vector_t res(ps.rows());
-                for (int i = 0, n = ps.rows(); i < n; ++i) { res[i] = storage.cast<FeFunction_>()(ps.row(i)); }
+		const auto& f = storage.cast<FeFunction_>();
+                for (int i = 0, n = ps.rows(); i < n; ++i) { res[i] = f(ps.row(i)); }
                 return res;
             };
             v.l2_squared_norm = [](const erased_storage& storage) -> double {
@@ -74,15 +75,17 @@ class FeFunction {
 
     template <int local_dim, int embed_dim, typename FeType> void alloc_(py::Mesh& mesh) {
         using Mesh_ = fdapde::Triangulation<local_dim, embed_dim>;
-	using FeSpace_ = fdapde::FeSpace<Mesh_, FeType>;
-	using FeFunction_ = fdapde::FeFunction<FeSpace_>;
-	
-	Mesh_& m = mesh.cast<local_dim, embed_dim>();
-	FeSpace Vh(m, FeType{});
-        storage_.ptr = new FeFunction_(Vh);
+        using FeSpace_ = fdapde::FeSpace<Mesh_, FeType>;
+        using FeFunction_ = fdapde::FeFunction<FeSpace_>;
+
+        Mesh_& m = mesh.cast<local_dim, embed_dim>();
+        fe_space_.ptr = new FeSpace_(m, FeType {});
+        fe_space_.destroy = [](void* ptr) { delete static_cast<FeSpace_*>(ptr); };
+
+        storage_.ptr = new FeFunction_(fe_space_.cast<FeSpace_>());
         storage_.destroy = [](void* ptr) { delete static_cast<FeFunction_*>(ptr); };
         vtable_ = vtable::make_vtable<FeFunction_>();
-	n_dofs_ = Vh.n_dofs();
+        n_dofs_ = fe_space_.cast<FeSpace_>().n_dofs();
     }
     using alloc_fn = void (FeFunction::*)(py::Mesh&);
     static constexpr std::array<std::tuple<int, int, alloc_fn>, 2> alloc_table_ = { // primo int, dimensione della mesh, sempre 2, secondo int, ordine degli elementi P
@@ -128,6 +131,7 @@ class FeFunction {
     int n_dofs_;
     vtable vtable_;
     erased_storage storage_;
+    erased_storage fe_space_;
 };
 
 }   // namespace py

@@ -39,7 +39,8 @@ void define_mesh(nb::module_& m) {
       .def_prop_ro("faces"  , [](const py::Mesh& self) { return self.faces();   })
       .def_prop_ro("bbox"   , [](const py::Mesh& self) { return self.bbox();    })
       .def_prop_ro("dim"    , [](const py::Mesh& self) { return self.dim();     })
-      .def_prop_ro("measure", [](const py::Mesh& self) { return self.measure(); });
+      .def_prop_ro("measure", [](const py::Mesh& self) { return self.measure(); })
+      .def        ("locate" , [](py::Mesh& self, const dbl_matrix& ps) { return self.locate(ps); });
 }
 
 // clang-format on

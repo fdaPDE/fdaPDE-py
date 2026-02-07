@@ -85,7 +85,7 @@ class Mesh(_cpp.geometry.Mesh):
         # plot boundary
         if boundary_nodes is not None:
             domain_fg = folium.FeatureGroup(name=domain_layer_name, show=domain_show)
-            boundary_nodes = np.asarray(bound[:, [1, 0]])
+            boundary_nodes = np.asarray(boundary_nodes[:, [1, 0]])
             folium.Polygon(
                 locations=boundary_nodes,
                 color=domain_color,

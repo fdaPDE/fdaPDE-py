@@ -42,6 +42,7 @@ class Mesh {
         double_mtx (*bbox   )(const erased_storage&);
         double     (*measure)(const erased_storage&);
         double_mtx (*boundary_nodes)(const erased_storage&);
+        int_mtx    (*locate)(erased_storage&, const double_mtx&);
 
         vtable() noexcept = default;
         template <typename Mesh_> static vtable make_vtable() noexcept {
@@ -60,6 +61,9 @@ class Mesh {
             v.faces   = [](const erased_storage& storage) -> int_mtx {
                 if constexpr (Mesh_::local_dim == 2) { return storage.cast<Mesh_>().edges(); }
                 if constexpr (Mesh_::local_dim == 3) { return storage.cast<Mesh_>().faces(); }
+            };
+            v.locate  = [](erased_storage& storage, const double_mtx& ps) -> int_mtx {
+                return storage.cast<Mesh_>().locate(ps);
             };
             return v;
         }
@@ -109,6 +113,7 @@ class Mesh {
     int_mtx    faces()   const { return vtable_.faces(storage_);   }
     double_mtx bbox()    const { return vtable_.bbox(storage_);    }
     double     measure() const { return vtable_.measure(storage_); }
+    int_mtx    locate(const double_mtx& ps) { return vtable_.locate(storage_, ps); }
 
     template <int LocalDim, int EmbedDim> const fdapde::Triangulation<LocalDim, EmbedDim>& cast() const {
         return storage_.cast<fdapde::Triangulation<LocalDim, EmbedDim>>();

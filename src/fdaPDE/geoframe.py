@@ -188,7 +188,7 @@ class GeoFrame:
 
     @property
     def colnames(self):
-        return [self.__getitem__(layer).colnames for layer in self.names]
+        return [x for xs in [self.__getitem__(layer).colnames for layer in self.names] for x in xs]
 
 
 ## low-level typed dispatch logic
