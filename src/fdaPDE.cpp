@@ -14,30 +14,30 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __PY_QSR_H__
-#define __PY_QSR_H__
-
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include "fe_ls_elliptic.h"
+#include <nanobind/nanobind.h>
+namespace nb = nanobind;
 
 namespace fdapde {
 namespace py {
 
-template <int LocalDim, int EmbedDim>
-class qsr_elliptic : public fe_ls_elliptic<LocalDim, EmbedDim, fdapde::QSRPDE<internals::fe_ls_elliptic>> {
-    using Base = fe_ls_elliptic<LocalDim, EmbedDim, fdapde::QSRPDE<internals::fe_ls_elliptic>>;
-   public:
-    qsr_elliptic() noexcept = default;
-    qsr_elliptic(
-      const std::string& formula, const pybind11::object& geoframe, double alpha,
-      const std::optional<pybind11::dict>& penalty) :
-        Base(formula, geoframe, penalty) {
-        this->model_.set_level(alpha);
-    }
-};
+void define_mesh(nb::module_& m);
+void define_geoframe(nb::module_& m);
+void define_fem(nb::module_& m);
+void define_models(nb::module_& m);
 
-}   // namespace py
-}   // namespace fdapde
+NB_MODULE(cpp, m) {
+    m.doc() = "fdaPDE Python interface";
+    nb::module_ geometry = m.def_submodule("geometry", "Geometry module");
+    define_mesh(geometry);
 
-#endif   // __PY_QSR_H__
+    define_geoframe(m);   // expose GeoFrame directly
+
+    nb::module_ fem = m.def_submodule("fem", "Finite Element module");
+    define_fem(fem);
+
+    nb::module_ models = m.def_submodule("models", "Physics-Informed Statical Modeling module");
+    define_models(models);
+}
+
+} // namespace py
+} // namespace fdapde

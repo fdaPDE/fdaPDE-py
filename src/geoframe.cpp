@@ -14,65 +14,66 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include <pybind11/eigen.h>
 #include "include/geoframe.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/stl/vector.h>
+#include <nanobind/stl/string.h>
+#include <nanobind/eigen/dense.h>
+namespace nb = nanobind;
 
 namespace fdapde {
 namespace py {
 
-// clang-format off
+// clang-format on
 
-using matrix_t = Eigen::Matrix<double, Dynamic, Dynamic>;
+void define_geoframe(nb::module_& m) {
+    using dbl_matrix = Eigen::Matrix<double, Dynamic, Dynamic>;
+    using int_matrix = Eigen::Matrix<int, Dynamic, Dynamic>;
   
-#define geoframe_pybind_interface(Triangulation)                                                                       \
-       def(pybind11::init<pybind11::object>())                                                                         \
-      .def(pybind11::init<pybind11::object, std::string, std::vector<int>, std::vector<std::string>>())                \
-      .def("flt64_assign"                    , &GeoFrame<Triangulation>::assign<double>                     )          \
-      .def("flt32_assign"                    , &GeoFrame<Triangulation>::assign<float>                      )          \
-      .def("int64_assign"                    , &GeoFrame<Triangulation>::assign<std::int64_t>               )          \
-      .def("int32_assign"                    , &GeoFrame<Triangulation>::assign<std::int32_t>               )          \
-      .def("str_assign"                      , &GeoFrame<Triangulation>::assign<std::string>                )          \
-      .def("flt64_access"                    , &GeoFrame<Triangulation>::access<double>                     )          \
-      .def("flt32_access"                    , &GeoFrame<Triangulation>::access<float>                      )          \
-      .def("int64_access"                    , &GeoFrame<Triangulation>::access<std::int64_t>               )          \
-      .def("int32_access"                    , &GeoFrame<Triangulation>::access<std::int32_t>               )          \
-      .def("str_access"                      , &GeoFrame<Triangulation>::access<std::string>                )          \
-      .def("flt64_insert"                    , &GeoFrame<Triangulation>::insert<double>                     )          \
-      .def("flt32_insert"                    , &GeoFrame<Triangulation>::insert<float>                      )          \
-      .def("int64_insert"                    , &GeoFrame<Triangulation>::insert<std::int64_t>               )          \
-      .def("int32_insert"                    , &GeoFrame<Triangulation>::insert<std::int32_t>               )          \
-      .def("str_insert"                      , &GeoFrame<Triangulation>::insert<std::string>                )          \
-      .def("ltype"                           , &GeoFrame<Triangulation>::ltype                              )          \
-      .def("flt64_blk_insert"                , &GeoFrame<Triangulation>::blk_insert<double>                 )          \
-      .def("int64_blk_insert"                , &GeoFrame<Triangulation>::blk_insert<std::int64_t>           )          \
-      .def("ltype"                           , &GeoFrame<Triangulation>::ltype                              )          \
-      .def("dtype"                           , &GeoFrame<Triangulation>::dtype                              )          \
-      .def("rows"                            , &GeoFrame<Triangulation>::rows                               )          \
-      .def("cols"                            , &GeoFrame<Triangulation>::cols                               )          \
-      .def("colnames"                        , &GeoFrame<Triangulation>::colnames                           )          \
-      .def("laynames"                        , &GeoFrame<Triangulation>::laynames                           )          \
-      .def("colnames_all"                    , &GeoFrame<Triangulation>::colnames_all                       )          \
-      .def("bbox"                            , &GeoFrame<Triangulation>::bbox                               )          \
-      .def("n_nodes"                         , &GeoFrame<Triangulation>::n_nodes                            )          \
-      .def("n_cells"                         , &GeoFrame<Triangulation>::n_cells                            )          \
-      /* point layer */                                                                                                \
-      .def("insert_scalar_point_layer"       , &GeoFrame<Triangulation>::insert_scalar_point_layer<matrix_t>)          \
-      .def("insert_scalar_point_layer_nodes" , &GeoFrame<Triangulation>::insert_scalar_point_layer<int>     )          \
-      .def("point_coordinates"               , &GeoFrame<Triangulation>::point_coordinates                  )          \
-      /* areal layer */                                                                                                \
-      .def("insert_scalar_areal_layer"       , &GeoFrame<Triangulation>::insert_scalar_areal_layer          )          \
-      .def("load_shp"                        , &GeoFrame<Triangulation>::load_shp                           )          \
-      .def("areal_polygons"                  , &GeoFrame<Triangulation>::areal_polygons                     )          \
-      .def("incidence_matrix"                , &GeoFrame<Triangulation>::incidence_matrix                   )
-	      
-using cpp_geoframe_2_2 = GeoFrame<fdapde::Triangulation<2, 2>>;
-PYBIND11_MODULE(_geoframe, m) {
-    using triangulation_2_2 = fdapde::Triangulation<2, 2>;
-    pybind11::class_<cpp_geoframe_2_2>(m, "cpp_geoframe_2_2").geoframe_pybind_interface(triangulation_2_2);
+    std::string pyclass_name = "GeoFrame";
+    nb::class_<py::GeoFrame>(m, pyclass_name.c_str(), "GeoFrame object")
+      .def(nb::init<py::Mesh&>())
+      .def(
+        nb::init<const py::GeoFrame&, const std::string&, const std::vector<int>&, const std::vector<std::string>&>())
+      .def(
+        "point_insert_layer",
+        [](py::GeoFrame& self, const std::string& layer, const dbl_matrix& locs, const nb::dict& data) {
+            return self.point_insert_layer(layer, locs, data);
+        })
+      .def_prop_ro("mesh", [](const py::GeoFrame& self) -> const py::Mesh& { return self.mesh(); })
+      .def("ltype", [](const py::GeoFrame& self, std::string layer) { return self.ltype(layer); })
+      .def(
+        "dtype",
+        [](const py::GeoFrame& self, std::string layer, std::string field) { return self.dtype(layer, field); })
+      .def(
+        "flt64_access",
+        [](const py::GeoFrame& self, const std::string& layer, const std::vector<int>& rows, const std::string& col) {
+            return self.access_flt64(layer, rows, col);
+        })
+      .def(
+        "int32_access",
+        [](const py::GeoFrame& self, const std::string& layer, const std::vector<int>& rows, const std::string& col) {
+            return self.access_int32(layer, rows, col);
+        })
+      .def(
+        "str_access",
+        [](const py::GeoFrame& self, const std::string& layer, const std::vector<int>& rows, const std::string& col) {
+            return self.access_str(layer, rows, col);
+        })
+      .def("rows", [](const py::GeoFrame& self, std::string layer) { return self.rows(layer); })
+      .def("cols", [](const py::GeoFrame& self, std::string layer) { return self.cols(layer); })
+      .def("colnames", [](const py::GeoFrame& self, std::string layer) { return self.colnames(layer); })
+      .def(
+        "point_coordinates", [](const py::GeoFrame& self, std::string layer) { return self.point_coordinates(layer); })
+      .def(
+        "load_shp",
+        [](py::GeoFrame& self, std::string layer, std::string filename) {
+            return self.load_shp(layer, filename);
+        })
+      .def(
+        "areal_polygons", [](const py::GeoFrame& self, std::string layer) { return self.areal_polygons(layer); });
 }
-
+  
 // clang-format on
 
 }   // namespace py

@@ -14,18 +14,35 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __PY_UTILITY_H__
-#define __PY_UTILITY_H__
+#ifndef __FDAPDE_PY_UTILITY_H__
+#define __FDAPDE_PY_UTILITY_H__
 
 namespace fdapde {
 namespace py {
 
-template <typename T> T& get_obj_as(const pybind11::object& py_obj, const std::string& attr) {
-    pybind11::object ptr = py_obj.attr(pybind11::str(attr));
-    return *pybind11::cast<T*>(ptr);
-}
+struct erased_storage {
+    erased_storage() = default;
+    erased_storage(const erased_storage&) = delete;
+    erased_storage& operator=(const erased_storage&) = delete;
+    erased_storage(erased_storage&& other) noexcept :
+        ptr(std::exchange(other.ptr, nullptr)), destroy(std::exchange(other.destroy, nullptr)) { }
+    erased_storage& operator=(erased_storage&& other) {
+        ptr = std::exchange(other.ptr, nullptr);
+        destroy = std::exchange(other.destroy, nullptr);
+        return *this;
+    }
+    ~erased_storage() {
+        if (ptr && destroy) destroy(ptr);
+    }
+    // cast to concrete type
+    template <typename T> const T& cast() const { return *static_cast<const T*>(ptr); }
+    template <typename T> T& cast() { return *static_cast<T*>(ptr); }
+
+    void* ptr = nullptr;
+    void (*destroy)(void*) = nullptr;
+};
 
 }   // namespace py
 }   // namespace fdapde
 
-#endif   // __PY_UTILITY_H__
+#endif   // __PY_MESH_H__

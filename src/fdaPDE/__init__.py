@@ -14,12 +14,12 @@
 ## You should have received a copy of the GNU General Public License
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-from .mesh import mesh
-from .geoframe import geoframe
-from .fe_function import fe_function
-from .sr import sr
-from .gsr import gsr
-from .qsr import qsr
-from .penalty import fe_elliptic
-from .gcv import gcv
-from .gcv import grid_search
+from fdaPDE import cpp as _cpp
+from fdaPDE import geometry, fem
+from fdaPDE.geoframe import GeoFrame
+
+__all__ = [
+    "Mesh",
+    "GeoFrame",
+    "FeFunction"
+]

@@ -20,17 +20,18 @@ include_directories(
 )
 
 find_package(Python REQUIRED COMPONENTS Interpreter Development.Module)
-find_package(pybind11 CONFIG REQUIRED)
+find_package(nanobind CONFIG REQUIRED)
 find_package(Eigen3 REQUIRED NO_MODULE)
 
-# automatically find all .cpp files in src/
-file(GLOB MODULE_SOURCES "${CMAKE_CURRENT_SOURCE_DIR}/src/*.cpp")
+nanobind_add_module(
+  cpp
+  NB_SUPPRESS_WARNINGS
+  src/fdaPDE.cpp
+  src/geometry.cpp
+  src/geoframe.cpp
+  src/fem.cpp
+  src/models.cpp
+)
 
-foreach(src_file IN LISTS MODULE_SOURCES)
- get_filename_component(module_name ${src_file} NAME_WE)
-    pybind11_add_module(_${module_name} ${src_file})
-    target_link_libraries(_${module_name} PRIVATE Eigen3::Eigen)
-    install(TARGETS _${module_name} DESTINATION fdaPDE)
-endforeach()
-
+install(TARGETS cpp DESTINATION fdaPDE)
 install(FILES src/fdaPDE/__init__.py DESTINATION fdaPDE)

@@ -14,27 +14,27 @@
 // You should have received a copy of the GNU General Public License
 // along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-#ifndef __PY_SR_H__
-#define __PY_SR_H__
+#ifndef __FDAPDE_PY_FE_INTEGRATION_H__
+#define __FDAPDE_PY_FE_INTEGRATION_H__
 
-#include <pybind11/pybind11.h>
-#include <pybind11/stl.h>
-#include "fe_ls_elliptic.h"
+#include <nanobind/nanobind.h>
+#include <nanobind/eigen/dense.h> // da rimuovere
+#include <fdaPDE/finite_elements.h>
+
+#include "geometry.h"
+#include "utility.h"
 
 namespace fdapde {
 namespace py {
 
-template <int LocalDim, int EmbedDim>
-class sr_elliptic : public fe_ls_elliptic<LocalDim, EmbedDim, fdapde::SRPDE<internals::fe_ls_elliptic>> {
-    using Base = fe_ls_elliptic<LocalDim, EmbedDim, fdapde::SRPDE<internals::fe_ls_elliptic>>;
-   public:
-    sr_elliptic() noexcept = default;
-    sr_elliptic(
-      const std::string& formula, const pybind11::object& geoframe, const std::optional<pybind11::dict>& penalty) :
-        Base(formula, geoframe, penalty) { }
-};
+Eigen::Matrix<double, Dynamic, Dynamic> fe_simplex_2d_p1_quadrature(const py::Mesh& mesh) {
+    using Mesh_ = fdapde::Triangulation<2, 2>;
+    const Mesh_& m = mesh.cast<2, 2>();
+
+    return simplex_quadrature_nodes(m, QS2DP2);
+}
 
 }   // namespace py
 }   // namespace fdapde
 
-#endif   // __PY_SR_H__
+#endif   // __FDAPDE_PY_FE_INTEGRATION_H__
