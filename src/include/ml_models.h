@@ -99,12 +99,10 @@ template <typename Model> struct fe_ml_elliptic {
        {3, 3, &fe_ml_elliptic<Model>::init_<3, 3>}}
     };
 };
-
   
 struct ml_vtable {
     using matrix_t = Eigen::Matrix<double, Eigen::Dynamic, Eigen::Dynamic>;
     using vector_t = Eigen::Matrix<double, Eigen::Dynamic, 1>;
-    using edf_cache_t = std::unordered_map<std::array<double, 1>, double, internals::std_array_hash<double, 1>>;
 
     void     (*fit        )(erased_storage&, double, const vector_t& g_init, const nb::dict&);
     vector_t (*density    )(const erased_storage&);
@@ -122,12 +120,10 @@ struct ml_vtable {
             double step  = nb::cast<double>(args["step"]);
             std::string opt_t = nb::cast<std::string>(args["opt"]);
 
-            if (opt_t == "gradient_descent" || opt_t == "bfgs") {
-                if (opt_t == "gradient_descent") {
-                    model.fit(lambda, g_init, GradientDescent<Dynamic> {max_iter, tol, step});
-                }
-                if (opt_t == "bfgs") { model.fit(lambda, g_init, BFGS<Dynamic> {max_iter, tol, step}); }
+            if (opt_t == "gradient_descent") {
+                model.fit(lambda, g_init, GradientDescent<Dynamic> {max_iter, tol, step});
             }
+            if (opt_t == "bfgs") { model.fit(lambda, g_init, BFGS<Dynamic> {max_iter, tol, step}); }
             return;
         };
         v.density     = [](const erased_storage& storage) { return storage.cast<Model>().density(); };

@@ -40,6 +40,16 @@ void define_geoframe(nb::module_& m) {
         [](py::GeoFrame& self, const std::string& layer, const dbl_matrix& locs, const nb::dict& data) {
             return self.point_insert_layer(layer, locs, data);
         })
+      .def(
+        "blk_insert_int32",
+        [](py::GeoFrame& self, std::string layer, std::string column, const int_matrix& data) {
+            self.blk_insert_int32(layer, column, data);
+        })
+      .def(
+        "blk_insert_flt64",
+        [](py::GeoFrame& self, std::string layer, std::string column, const dbl_matrix& data) {
+            self.blk_insert_flt64(layer, column, data);
+        })
       .def_prop_ro("mesh", [](const py::GeoFrame& self) -> const py::Mesh& { return self.mesh(); })
       .def("ltype", [](const py::GeoFrame& self, std::string layer) { return self.ltype(layer); })
       .def(
@@ -67,11 +77,8 @@ void define_geoframe(nb::module_& m) {
         "point_coordinates", [](const py::GeoFrame& self, std::string layer) { return self.point_coordinates(layer); })
       .def(
         "load_shp",
-        [](py::GeoFrame& self, std::string layer, std::string filename) {
-            return self.load_shp(layer, filename);
-        })
-      .def(
-        "areal_polygons", [](const py::GeoFrame& self, std::string layer) { return self.areal_polygons(layer); });
+        [](py::GeoFrame& self, std::string layer, std::string filename) { return self.load_shp(layer, filename); })
+      .def("areal_polygons", [](const py::GeoFrame& self, std::string layer) { return self.areal_polygons(layer); });
 }
   
 // clang-format on

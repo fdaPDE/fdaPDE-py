@@ -52,7 +52,9 @@ class GeoFrame {
           const erased_storage&, std::string, const std::vector<int>&, std::string);
         void (*load_shp)(erased_storage&, std::string, std::string);
         std::vector<nb::dict> (*areal_polygons)(const erased_storage&, std::string);
-
+        void (*blk_insert_int32)(erased_storage&, std::string, std::string, const int_matrix&);
+        void (*blk_insert_flt64)(erased_storage&, std::string, std::string, const dbl_matrix&);
+      
         template <typename T, typename GeoFrame>
         static std::vector<T>
         access(const erased_storage& s, const std::string& l, const std::vector<int>& r, std::string c) {
@@ -185,6 +187,12 @@ class GeoFrame {
                     polygons.push_back(polygon);
                 }
                 return polygons;
+            };
+            v.blk_insert_int32 = [](erased_storage& s, std::string l, std::string c, const int_matrix& data) {
+                s.cast<GeoFrame_>()[l].add_block(c, data);
+            };
+            v.blk_insert_flt64 = [](erased_storage& s, std::string l, std::string c, const dbl_matrix& data) {
+                s.cast<GeoFrame_>()[l].add_block(c, data);
             };
             return v;
         }
@@ -348,11 +356,14 @@ class GeoFrame {
     // void insert(const std::string& layer_name, const std::string& colname, const std::vector<T>& data) {
     //     data_[layer_name].add_column(colname, data);
     // }
-    // template <typename T>
-    // void blk_insert(
-    //   const std::string& layer_name, const std::string& colname, const Eigen::Matrix<T, Dynamic, Dynamic>& data) {
-    //     data_[layer_name].add_block(colname, data);
-    // }
+    void blk_insert_flt64(
+      const std::string& layer_name, const std::string& colname, const Eigen::Matrix<double, Dynamic, Dynamic>& data) {
+        vtable_.blk_insert_flt64(storage_, layer_name, colname, data);
+    }
+    void blk_insert_int32(
+      const std::string& layer_name, const std::string& colname, const Eigen::Matrix<int, Dynamic, Dynamic>& data) {
+        vtable_.blk_insert_int32(storage_, layer_name, colname, data);
+    }
 
     // template <typename T>
     // void assign(

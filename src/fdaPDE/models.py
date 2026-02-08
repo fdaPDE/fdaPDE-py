@@ -19,7 +19,7 @@ from fdaPDE.fem import FeFunction
 from .formula import _formula
 import numpy as np
 
-__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "PPE", "gcv", "grid_search", "bfgs", "gradient_descent", "fe_elliptic"]
+__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "PPE", "fPCA", "gcv", "grid_search", "bfgs", "gradient_descent", "fe_elliptic"]
 
 
 def gcv(optimizer, edf="stochastic", mc_samples=100, seed=None):
@@ -312,4 +312,28 @@ class PPE:
     @property
     def fitted(self):
         return self._ptr.fitted()
+
+
+class fPCA:
+    def __init__(self, column, data):
+        self._ptr = _cpp.models.fPCA(column, data._ptr)
+
+    def fit(self, npc_, calibration_):
+        self._ptr.fit(npc_, calibration_)
+
+    @property
+    def scores(self):
+        return self._ptr.scores()
+
+    @property
+    def loadings(self):
+        return self._ptr.loadings()
+
+    @property
+    def pcs(self):
+        return self._ptr.pcs()
+
+    @property
+    def pcs_norm(self):
+        return self._ptr.pcs_norm()
 

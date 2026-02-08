@@ -19,6 +19,7 @@
 #include <nanobind/eigen/dense.h>
 #include "include/ls_models.h"
 #include "include/ml_models.h"
+#include "include/fpca.h"
 
 namespace fdapde {
 namespace py {
@@ -74,6 +75,14 @@ void define_models(nb::module_& m) {
       .def("density"    , [](const py::DEPDE& self) { return self.density(); }                                       )
       .def("log_density", [](const py::DEPDE& self) { return self.log_density(); }                                   )
       .def("fitted"     , [](const py::DEPDE& self) { return self.fitted(); }                                        );
+
+    nb::class_<py::fPCA>(m, std::string("fPCA").c_str(), "functional Principal Component Analysis")
+      .def(nb::init<const std::string&, const py::GeoFrame&>(), nb::arg("colname"), nb::arg("data"))
+      .def("fit", [](py::fPCA& self, int rank, const nb::dict& args) { return self.fit(rank, args); })
+      .def("scores", [](const py::fPCA& self) { return self.scores(); })
+      .def("loadings", [](const py::fPCA& self) { return self.fitted(); })
+      .def("pcs", [](const py::fPCA& self) { return self.loadings(); })
+      .def("pcs_norm", [](const py::fPCA& self) { return self.loadings_norm(); });
 }
   
 // clang-format on

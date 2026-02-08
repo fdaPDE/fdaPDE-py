@@ -284,6 +284,9 @@ class _data_layer:
             value = [value] * len(rows)
         _gf_cpp_assign(self, rows, col, value)
 
+    def add_column(self, colname, data):
+        self._ptr.blk_insert_flt64(self._name, colname, data)
+        
     @property
     def name(self):
         return self._name
