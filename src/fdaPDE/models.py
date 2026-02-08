@@ -19,7 +19,7 @@ from fdaPDE.fem import FeFunction
 from .formula import _formula
 import numpy as np
 
-__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "gcv", "grid_search", "fe_elliptic"]
+__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "PPE", "gcv", "grid_search", "bfgs", "gradient_descent", "fe_elliptic"]
 
 
 def gcv(optimizer, edf="stochastic", mc_samples=100, seed=None):
@@ -30,9 +30,15 @@ def gcv(optimizer, edf="stochastic", mc_samples=100, seed=None):
 
 def grid_search(grid):
     import numpy as np
+    return {"opt": "grid", "grid": np.asarray(grid)}
 
-    args = {"opt": "grid", "grid": np.asarray(grid)}
-    return args
+
+def bfgs(max_iter = 100, tolerance = 0.01, step = 0.01):
+    return {"opt": "bfgs", "max_iter": max_iter, "tolerance": tolerance, "step": step}
+
+
+def gradient_descent(max_iter = 100, tolerance = 0.01, step = 0.01):
+    return {"opt": "gradient_descent", "max_iter": max_iter, "tolerance": tolerance, "step": step}
 
 
 def fe_elliptic(K=None, b=None, c=None, u=None):
@@ -286,3 +292,24 @@ class QSRPDE:
     @property
     def fitted(self):
         return self._ptr.fitted()
+
+
+class PPE:
+    def __init__(self, data, penalty=None):
+        self._ptr = _cpp.models.DEPDE(data._ptr, penalty)
+
+    def fit(self, lambda_, optimizer_):
+        return self._ptr.fit(lambda_, optimizer_)
+
+    @property
+    def density(self):
+        return self._ptr.density()
+
+    @property
+    def log_density(self):
+        return self._ptr.log_density()
+
+    @property
+    def fitted(self):
+        return self._ptr.fitted()
+

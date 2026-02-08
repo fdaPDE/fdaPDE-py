@@ -64,7 +64,7 @@ class GeoFrame:
                     b[key][colname] = arr
                     return
 
-        if data is not None:
+        if data is not None and layer_type != "point_pattern":
             if isinstance(data, np.ndarray):
                 n_col = 1 if data.ndim == 1 else data.shape[1]
                 colnames = [f"V{i+1}" for i in range(n_col)]  # defaults column names
@@ -91,8 +91,6 @@ class GeoFrame:
         if geo is None:
             if layer_type != "point":
                 raise ValueError("Missing geometry.")
-            # self._ptr.insert_scalar_point_layer_nodes(layer, 0, env)
-            # self._layer_map[layer] = "point"
         else:
             # geometry could be column names or direct coordinates
             if isinstance(geo, (str, list)):
@@ -104,11 +102,11 @@ class GeoFrame:
             else:
                 geo_ = np.asarray(geo)
 
-            if layer_type == "point":
+            if layer_type == "point" or layer_type == "point_pattern":
                 self._ptr.point_insert_layer(
                     layer, np.array(geo_, dtype=np.float64, order="F"), env
                 )  # qui viene fatta una copia, perchè eigen vuole col-major.....
-                self._layer_map[layer] = "point"
+                self._layer_map[layer] = layer_type
 
             if layer_type == "areal":
                 self._ptr.areal_insert_layer(
@@ -138,29 +136,31 @@ class GeoFrame:
 
         if n_layers > 0:
             for name in layer_names:
+                layer_type = self._layer_map[name]
                 out.append(f"Layer: {name}")
-                ncols = self._ptr.cols(name)
+                ncols = (
+                    self._ptr.cols(name)
+                    if layer_type != "point_pattern"
+                    else self._ptr.mesh.dim[1]
+                )
                 nrows = self._ptr.rows(name)
-                if ncols == 0:
-                    out.append("Type:  POINT PATTERN")
-                    out.append(f"Dims:  {nrows}, {self._ptr.mesh.dim[1]}")
-                else:
-                    layer_type = self._layer_map[name]
-                    out.append(f"Type:  {layer_type.upper()}")
-                    out.append(f"Dims:  {nrows}, {ncols}")
+                out.append(f"Type:  {layer_type.upper()}")
+                out.append(f"Dims:  {nrows}, {ncols}")
 
-                    # show first few data rows
-                    n_preview = min(6, nrows)
-                    out.append(f"First {n_preview} data rows:")
+                # show first few data rows
+                n_preview = min(6, nrows)
+                out.append(f"First {n_preview} data rows:")
 
-                    if layer_type == "areal":
-                        layer = _areal_layer(self, name)
-                        out.append(str(layer))
-                        out.append("")
-                    if layer_type == "point":
-                        layer = _point_layer(self, name)
-                        out.append(str(layer))
-                        out.append("")
+                layer = None
+                if layer_type == "areal":
+                    layer = _areal_layer(self, name)
+                if layer_type == "point":
+                    layer = _point_layer(self, name)
+                if layer_type == "point_pattern":
+                    layer = _point_pattern_layer(self, name)
+
+                out.append(str(layer))
+                out.append("")
 
         return "\n".join(out)
 
@@ -173,6 +173,8 @@ class GeoFrame:
             return _areal_layer(self, layer_name)
         if layer_type == "point":
             return _point_layer(self, layer_name)
+        if layer_type == "point_pattern":
+            return _point_pattern_layer(self, layer_name)
 
     @property
     def n_layers(self):
@@ -188,7 +190,11 @@ class GeoFrame:
 
     @property
     def colnames(self):
-        return [x for xs in [self.__getitem__(layer).colnames for layer in self.names] for x in xs]
+        return [
+            x
+            for xs in [self.__getitem__(layer).colnames for layer in self.names]
+            for x in xs
+        ]
 
 
 ## low-level typed dispatch logic
@@ -567,3 +573,97 @@ class _areal_layer(_data_layer):
             lines.append(row_line)
 
         return "\n".join(lines)
+
+
+class _point_pattern_layer(_data_layer):
+
+    @property
+    def geometry(self):
+        return self._ptr.point_coordinates(self._name)
+
+    def __str__(self):
+        out = []
+        nrows = min(6, self._ptr.rows(self._name))
+        locations = self.geometry[:nrows]
+
+        # prepare display
+        # first column display geometrical information
+        geo = [
+            f"({coord[0]:.6f}, {coord[1]:.6f})" for coord in locations
+        ]  # do not generalize with embed_dim dimension
+        geo_column = ["", "<POINT>"] + geo
+        out.append(geo_column)
+        # send to output stream
+        col_widths = [max(len(s) for s in col) for col in out]
+        lines = []
+        type_line = "".join(
+            f"\033[0;31m{c[1].rjust(w)}\033[0m" for c, w in zip(out, col_widths)
+        )
+        lines.append(type_line)
+
+        for i in range(2, len(out[0])):
+            row_line = "".join(out[j][i] for j in range(len(out)))
+            lines.append(row_line)
+
+        return "\n".join(lines)
+
+    def mapplot(
+        self,
+        boundary_nodes=None,
+        zoom_start=6,
+        tiles="cartodb positron",
+        marker_radius=6,
+        marker_weight=1,
+        marker_fill_opacity=0.6,
+        marker_fill_color="red",
+        marker_border_color="black",
+        domain_color="black",
+        domain_weight=2,
+        domain_fill=True,
+        domain_fill_color="grey",
+        domain_fill_opacity=0.5,
+    ):
+
+        import folium
+        
+        coords = np.asarray(self.geometry)
+        mesh_coords = self._ptr.mesh.nodes
+
+        # map center
+        map_center = [coords[:, 1].mean(), coords[:, 0].mean()]
+        m = folium.Map(location=map_center, zoom_start=zoom_start, tiles=tiles)
+
+        if boundary_nodes is not None:
+            boundary_nodes = np.asarray(boundary_nodes)[:, [1, 0]]
+
+            domain_fg = folium.FeatureGroup(name="domain", show=True)
+
+            folium.Polygon(
+                locations=boundary_nodes,
+                color=domain_color,
+                weight=domain_weight,
+                fill=domain_fill,
+                fill_color=domain_fill_color,
+                fill_opacity=domain_fill_opacity,
+            ).add_to(domain_fg)
+
+            domain_fg.add_to(m)
+
+        data_fg = folium.FeatureGroup(name="locations", show=True)
+
+        for i in range(coords.shape[0]):
+            folium.CircleMarker(
+                location=[coords[i, 1], coords[i, 0]],
+                radius=marker_radius,
+                color=marker_border_color,
+                weight=marker_weight,
+                fill=True,
+                fill_color=marker_fill_color,
+                fill_opacity=marker_fill_opacity,
+            ).add_to(data_fg)
+
+        data_fg.add_to(m)
+
+        folium.LayerControl(collapsed=False).add_to(m)
+
+        return m

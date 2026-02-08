@@ -18,6 +18,7 @@
 #include <nanobind/stl/optional.h>
 #include <nanobind/eigen/dense.h>
 #include "include/ls_models.h"
+#include "include/ml_models.h"
 
 namespace fdapde {
 namespace py {
@@ -63,6 +64,16 @@ void define_models(nb::module_& m) {
       .def("f"      , [](const py::QSRPDE& self) { return self.f(); }                                  )
       .def("beta"   , [](const py::QSRPDE& self) { return self.beta(); }                               )
       .def("fitted" , [](const py::QSRPDE& self) { return self.fitted(); }                             );
+
+    nb::class_<py::DEPDE>(m, std::string("DEPDE").c_str(), "Density Estimation model")
+      .def(
+        nb::init<const py::GeoFrame&, const std::optional<nb::dict>&>(),
+        nb::arg("data"),
+        nb::arg("penalty") = nb::none())
+      .def("fit"        , [](py::DEPDE& self, double lambda, const nb::dict& args) { return self.fit(lambda, args); })
+      .def("density"    , [](const py::DEPDE& self) { return self.density(); }                                       )
+      .def("log_density", [](const py::DEPDE& self) { return self.log_density(); }                                   )
+      .def("fitted"     , [](const py::DEPDE& self) { return self.fitted(); }                                        );
 }
   
 // clang-format on
