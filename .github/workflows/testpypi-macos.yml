@@ -1,0 +1,58 @@
+name: Build macOS wheels (TestPyPI)
+
+on:
+  push:
+    tags:
+      - "v*-test*"   # only run on tags for experimental versions
+
+jobs:
+  build_wheels:
+    name: Build macos wheels
+    runs-on: macos-26
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          persist-credentials: false
+          submodules: recursive
+
+      # enable QEMU emulation to build for arm64 on x86_64 runner
+      - name: Set up QEMU
+        if: runner.os == 'Linux'
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      # used to host cibuildwheel
+      - uses: actions/setup-python@v6
+
+      # install build depdencies
+      - name: Install build tools
+        run: python -m pip install setuptools wheel cibuildwheel build twine nanobind
+
+      - name: Download Eigen headers
+        run: |
+          mkdir -p deps
+          mkdir -p deps/eigen3
+          curl -L https://gitlab.com/libeigen/eigen/-/archive/5.0.0/eigen-5.0.0.tar.gz \
+            | tar xz -C deps/eigen3 --strip-components=1
+
+      - name: Build wheels
+        run: |
+          python -m cibuildwheel --output-dir wheelhouse
+        env:
+          CIBW_BUILD: "cp311-* cp312-* cp313-* cp314-*"
+          CIBW_ARCHS_MACOS: "x86_64 arm64"
+          CIBW_ENVIRONMENT: >
+            CC=$(brew --prefix llvm@20)/bin/clang
+            CXX=$(brew --prefix llvm@20)/bin/clang++
+            MACOSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Upload to TestPyPI
+        run: |
+          twine upload \
+            --repository-url https://test.pypi.org/legacy/ \
+            wheelhouse/*
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.TEST_PYPI_TOKEN }}

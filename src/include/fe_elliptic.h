@@ -104,7 +104,7 @@ template <typename Model> struct fe_elliptic {
             auto F = integral(D)(u * v);
 
             model.discretize(fdapde::fe_ls_elliptic(a, F).get());
-        }
+        }	
         model.analyze_data(formula, gf);
         return;
     }

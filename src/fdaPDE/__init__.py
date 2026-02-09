@@ -15,11 +15,21 @@
 ## along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from fdaPDE import cpp as _cpp
-from fdaPDE import geometry, fem
+from fdaPDE import geometry, fem, optimization
 from fdaPDE.geoframe import GeoFrame
 
 __all__ = [
     "Mesh",
     "GeoFrame",
-    "FeFunction"
+    "FeFunction",
+    "SRPDE",
+    "GSRPDE",
+    "QSRPDE",
+    "PPE",
+    "fPCA",
+    "GCV",
+    "FeElliptic",
+    "GridSearch",
+    "BFGS",
+    "GradientDescent"
 ]

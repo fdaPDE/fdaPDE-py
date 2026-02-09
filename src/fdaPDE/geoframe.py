@@ -577,7 +577,6 @@ class _areal_layer(_data_layer):
 
         return "\n".join(lines)
 
-
 class _point_pattern_layer(_data_layer):
 
     @property

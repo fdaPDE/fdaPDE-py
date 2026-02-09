@@ -53,9 +53,10 @@ class Mesh(_cpp.geometry.Mesh):
     def mapplot(
         self,
         boundary_nodes=None,
+        domain_shape=None,
         map_location=None,
-        zoom_start=6,
-        tiles="cartodb positron",
+        zoom_start=7,
+        tiles="CartoDB positron",
         domain_layer_name="domain",
         domain_color="black",
         domain_weight=2,
@@ -68,24 +69,38 @@ class Mesh(_cpp.geometry.Mesh):
         mesh_weight=0.8,
         mesh_opacity=0.8,
         mesh_show=True,
+        map_height="500px",
     ):
 
         import folium
+        from IPython.display import HTML
 
-        nodes = super().nodes
-        cells = super().cells
+        if boundary_nodes is None and domain_shape is None:
+            raise ValueError("Provide boundary_nodes or domain_shape.")
+        if boundary_nodes is not None and domain_shape is not None:
+            raise ValueError("Provide only one of boundary_nodes or domain_shape.")
+
+        nodes = np.asarray(super().nodes)
+        cells = np.asarray(super().cells)
 
         # set map location to mesh mid-point
         if map_location is None:
             map_location = [nodes[:, 1].mean(), nodes[:, 0].mean()]
 
         # create map
-        m = folium.Map(location=map_location, zoom_start=zoom_start, tiles=tiles)
+        m = folium.Map(
+            location=map_location,
+            zoom_start=zoom_start,
+            tiles=tiles,
+            width="100%",
+            height=map_height,
+        )
 
-        # plot boundary
+        # domain layer
+        domain_fg = folium.FeatureGroup(name=domain_layer_name, show=domain_show)
         if boundary_nodes is not None:
-            domain_fg = folium.FeatureGroup(name=domain_layer_name, show=domain_show)
-            boundary_nodes = np.asarray(boundary_nodes[:, [1, 0]])
+            boundary_nodes = np.asarray(boundary_nodes)
+            boundary_nodes = boundary_nodes[:, [1, 0]]
             folium.Polygon(
                 locations=boundary_nodes,
                 color=domain_color,
@@ -94,27 +109,109 @@ class Mesh(_cpp.geometry.Mesh):
                 fill_color=domain_fill_color,
                 fill_opacity=domain_fill_opacity,
             ).add_to(domain_fg)
+        else:
+            folium.GeoJson(
+                domain_shape,
+                style_function=lambda x: {
+                    "fillColor": domain_fill_color,
+                    "color": domain_color,
+                    "weight": domain_weight,
+                    "fillOpacity": domain_fill_opacity,
+                },
+            ).add_to(domain_fg)
+        domain_fg.add_to(m)
 
-            domain_fg.add_to(m)
-
-        # plot mesh
+        # mesh layer
         mesh_fg = folium.FeatureGroup(name=mesh_layer_name, show=mesh_show)
         for tri in cells:
-            points = [
-                [nodes[tri[0], 1], nodes[tri[0], 0]],
-                [nodes[tri[1], 1], nodes[tri[1], 0]],
-                [nodes[tri[2], 1], nodes[tri[2], 0]],
-                [nodes[tri[0], 1], nodes[tri[0], 0]],
-            ]
-
+            points = [[nodes[tri[i], 1], nodes[tri[i], 0]] for i in range(3)]
+            points.append(points[0])
             folium.PolyLine(
                 points, color=mesh_color, weight=mesh_weight, opacity=mesh_opacity
             ).add_to(mesh_fg)
-
         mesh_fg.add_to(m)
 
         folium.LayerControl(collapsed=False).add_to(m)
-        return m
+
+        # display forcing height
+        iframe_html = m._repr_html_()
+        display(HTML(f"""
+        <div style="width:100%; height:{map_height}; margin:0; padding:0;">
+            <style>
+                iframe {{
+                    width: 100% !important;
+                    height: {map_height} !important;
+                }}
+            </style>
+            {iframe_html}
+        </div>
+        """))
+
+    # def mapplot(
+    #     self,
+    #     boundary_nodes=None,
+    #     map_location=None,
+    #     zoom_start=6,
+    #     tiles="cartodb positron",
+    #     domain_layer_name="domain",
+    #     domain_color="black",
+    #     domain_weight=2,
+    #     domain_fill=True,
+    #     domain_fill_color="grey",
+    #     domain_fill_opacity=0.4,
+    #     domain_show=True,
+    #     mesh_layer_name="mesh",
+    #     mesh_color="black",
+    #     mesh_weight=0.8,
+    #     mesh_opacity=0.8,
+    #     mesh_show=True,
+    # ):
+
+    #     import folium
+
+    #     nodes = super().nodes
+    #     cells = super().cells
+
+    #     # set map location to mesh mid-point
+    #     if map_location is None:
+    #         map_location = [nodes[:, 1].mean(), nodes[:, 0].mean()]
+
+    #     # create map
+    #     m = folium.Map(location=map_location, zoom_start=zoom_start, tiles=tiles)
+
+    #     # plot boundary
+    #     if boundary_nodes is not None:
+    #         domain_fg = folium.FeatureGroup(name=domain_layer_name, show=domain_show)
+    #         boundary_nodes = np.asarray(boundary_nodes[:, [1, 0]])
+    #         folium.Polygon(
+    #             locations=boundary_nodes,
+    #             color=domain_color,
+    #             weight=domain_weight,
+    #             fill=domain_fill,
+    #             fill_color=domain_fill_color,
+    #             fill_opacity=domain_fill_opacity,
+    #         ).add_to(domain_fg)
+
+    #         domain_fg.add_to(m)
+
+    #     # plot mesh
+    #     mesh_fg = folium.FeatureGroup(name=mesh_layer_name, show=mesh_show)
+    #     for tri in cells:
+    #         points = [
+    #             [nodes[tri[0], 1], nodes[tri[0], 0]],
+    #             [nodes[tri[1], 1], nodes[tri[1], 0]],
+    #             [nodes[tri[2], 1], nodes[tri[2], 0]],
+    #             [nodes[tri[0], 1], nodes[tri[0], 0]],
+    #         ]
+
+    #         folium.PolyLine(
+    #             points, color=mesh_color, weight=mesh_weight, opacity=mesh_opacity
+    #         ).add_to(mesh_fg)
+
+    #     mesh_fg.add_to(m)
+
+    #     folium.LayerControl(collapsed=False).add_to(m)
+    #     return m
 
     def __str__(self):
         bbox = self.bbox

@@ -70,9 +70,7 @@ class FeFunction:
         self._ptr.set_coeff(np.asarray(c))
 
     def eval(self, locations):
-        return self._ptr.grid_eval(
-            np.asarray(locations), self._domain.locate(locations)
-        )
+        return self._ptr.grid_eval(np.asarray(locations))
 
     def plot(
         self,
@@ -81,7 +79,6 @@ class FeFunction:
         ylabel="",
         title="",
         aspect=1,
-        log_scale=True,
         boundary_nodes=None,
         **kwargs,
     ):
@@ -102,8 +99,6 @@ class FeFunction:
             import seaborn as sns
 
             kwargs["cmap"] = sns.color_palette("mako", as_cmap=True)
-        if not log_scale:
-            f_fit = np.exp(f_fit)
 
         tpc = ax.tripcolor(triangulation, f_fit, **kwargs)
         ## plot domain boundary
@@ -125,43 +120,72 @@ class FeFunction:
 
     def mapplot(
         self,
-        boundary_nodes,
+        boundary_nodes=None,
+        domain_shape=None,
         nx=200,
         ny=200,
         cmap_name="Blues",
+        palette=None,
         opacity=1.0,
         layer_name="f",
         zoom_start=7,
         tiles="cartodb positron",
+        epsg_map=4326,
+        epsg_centroid=32617,
     ):
 
+        import numpy as np
         import folium
         import matplotlib
         import matplotlib.colors as mcolors
         import branca.colormap as bc
-        from folium.raster_layers import ImageOverlay
-        from shapely.geometry import Point, Polygon
+        import geopandas as gpd
+        from shapely.geometry import Polygon, Point
+        from IPython.display import HTML
         
-        # evaluate fe function on regular fine grid
-        lat_nodes = self._domain.nodes[:, 1]
-        lon_nodes = self._domain.nodes[:, 0]
+        # --------------------------------------------------
+        # Input checks
+        if boundary_nodes is None and domain_shape is None:
+            raise ValueError("Provide either boundary_nodes or domain_shape.")
+
+        if boundary_nodes is not None and domain_shape is not None:
+            raise ValueError("Provide only one of boundary_nodes or domain_shape.")
+
+        lon_nodes = self.mesh.nodes[:, 0]
+        lat_nodes = self.mesh.nodes[:, 1]
 
         lat_lin = np.linspace(lat_nodes.min(), lat_nodes.max(), ny)
         lon_lin = np.linspace(lon_nodes.min(), lon_nodes.max(), nx)
+
         LAT, LON = np.meshgrid(lat_lin, lon_lin)
         grid_points = np.column_stack((LON.ravel(), LAT.ravel()))
 
-        # evaluate
-        f_eval = np.asarray(self._ptr.grid_eval(grid_points))
+        f_eval = np.asarray(self.eval(grid_points))
         f_mat = f_eval.reshape(ny, nx)
 
-        boundary_nodes_latlon = np.asarray(boundary_nodes)[:, [1, 0]]
-        domain_poly = Polygon(boundary_nodes_latlon)
+        if boundary_nodes is not None:
+            boundary_nodes = np.asarray(boundary_nodes)
+            if boundary_nodes.shape[1] != 2:
+                raise ValueError("boundary_nodes must have shape (N, 2)")
+            domain_geom = Polygon(boundary_nodes)
+            map_center = [lat_nodes.mean(), lon_nodes.mean()]
+        else:
+            domain = domain_shape.copy()
+
+            if domain.crs is None:
+                domain = domain.set_crs(epsg=epsg_map)
+
+            domain = domain.to_crs(epsg=epsg_map)
+            domain_geom = domain.geometry.union_all()
+
+            domain_utm = domain.to_crs(epsg=epsg_centroid)
+            centroid = domain_utm.geometry.centroid.to_crs(epsg=epsg_map)
+            map_center = [centroid.y.mean(), centroid.x.mean()]
 
         mask = np.array(
             [
-                domain_poly.contains(Point(x, y))
-                for x, y in zip(LAT.ravel(), LON.ravel())
+                domain_geom.contains(Point(x, y))
+                for x, y in zip(LON.ravel(), LAT.ravel())
             ]
         ).reshape(LAT.shape)
 
@@ -172,24 +196,47 @@ class FeFunction:
         vmin = np.nanmin(f_grid)
         vmax = np.nanmax(f_grid)
 
-        cmap = matplotlib.colormaps[cmap_name]
-        norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+        # colormap handling
+        if palette is not None:
+            colormap = bc.LinearColormap(
+                colors=palette, vmin=vmin, vmax=vmax, caption=layer_name
+            )
+            cmap_func = colormap
+            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
 
-        rgba_img = cmap(norm(f_grid))
-        rgba_img = (rgba_img * 255).astype(np.uint8)
+            rgba_img = np.zeros((*f_grid.shape, 4))
+            for i in range(f_grid.shape[0]):
+                for j in range(f_grid.shape[1]):
+                    val = f_grid[i, j]
+                    if np.isnan(val):
+                        rgba_img[i, j] = [0, 0, 0, 0]
+                    else:
+                        rgba_img[i, j] = mcolors.to_rgba(cmap_func(val))
+
+            rgba_img = (rgba_img * 255).astype(np.uint8)
+
+        else:
+            cmap = matplotlib.colormaps[cmap_name]
+            norm = mcolors.Normalize(vmin=vmin, vmax=vmax)
+
+            rgba_img = cmap(norm(f_grid))
+            rgba_img = (rgba_img * 255).astype(np.uint8)
+
+            colormap = bc.LinearColormap(
+                colors=[cmap(i) for i in np.linspace(0, 1, 256)],
+                vmin=vmin,
+                vmax=vmax,
+                caption=layer_name,
+            )
 
         bounds = [
-            [lat_nodes.min(), lon_nodes.min()],  # SW
-            [lat_nodes.max(), lon_nodes.max()],  # NE
+            [lat_nodes.min(), lon_nodes.min()],
+            [lat_nodes.max(), lon_nodes.max()],
         ]
 
-        m = folium.Map(
-            location=[lat_nodes.mean(), lon_nodes.mean()],
-            zoom_start=zoom_start,
-            tiles=tiles,
-        )
+        m = folium.Map(location=map_center, zoom_start=zoom_start, tiles=tiles)
 
-        ImageOverlay(
+        folium.raster_layers.ImageOverlay(
             image=rgba_img,
             bounds=bounds,
             opacity=opacity,
@@ -199,25 +246,36 @@ class FeFunction:
 
         domain_fg = folium.FeatureGroup(name="domain", show=True)
 
-        folium.Polygon(
-            locations=boundary_nodes_latlon,
-            color="black",
-            weight=2,
-            fill=False,
-            name="domain",
-        ).add_to(domain_fg)
+        if boundary_nodes is not None:
+            folium.Polygon(
+                locations=boundary_nodes[:, [1, 0]], color="black", weight=2, fill=False
+            ).add_to(domain_fg)
+        else:
+            folium.GeoJson(
+                domain,
+                style_function=lambda x: {
+                    "fillColor": "none",
+                    "color": "black",
+                    "weight": 2,
+                },
+            ).add_to(domain_fg)
 
         domain_fg.add_to(m)
 
-        colormap = bc.LinearColormap(
-            colors=[cmap(i) for i in np.linspace(0, 1, 256)],
-            vmin=vmin,
-            vmax=vmax,
-            caption=layer_name,
-        )
-
         colormap.add_to(m)
+        folium.LayerControl(collapsed=False).add_to(m)
 
-        folium.LayerControl().add_to(m)
+        html = m.get_root()._repr_html_()
+        HTML(f"""
+        <div style="
+            width: 100%;
+            height: 600px;
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+        ">
+        {html}
+        </div>
+        """)
 
         return m

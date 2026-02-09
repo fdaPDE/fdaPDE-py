@@ -8,14 +8,13 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "fdaPDE"
-version = "2.0.0"
+version = "2.0.0rc5"
 description="The python wrapper to the fdaPDE library for physics-informed spatial and functional data analysis."
 readme = "README.md"
-dependencies = ["numpy", "matplotlib"]
+dependencies = ["numpy"]
 authors = [
   { name = "Alessandro Palummo", email = "alessandro.palummo@polimi.it" },
   { name = "Ilenia Di Battista", email = "ilenia.dibattista@polimi.it"  },
 ]
 requires-python = ">=3.11"
-license = "GPL-3.0-or-later"
-license-files = ["LICEN[CS]E*"]
+license = { file = "LICENSE" }

@@ -18,7 +18,7 @@ class _formula:
     def __init__(self, formula):
         # split into lhs and rhs
         lhs, rhs = map(str.strip, formula.split("~"))
-        self._lhs = lhs    
+        self._lhs = [v.strip() for v in lhs.split("+")]
         # collect rhs variable names
         self._rhs = [v.strip() for v in rhs.split("+")]
 

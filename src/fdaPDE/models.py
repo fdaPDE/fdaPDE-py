@@ -19,101 +19,121 @@ from fdaPDE.fem import FeFunction
 from .formula import _formula
 import numpy as np
 
-__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "PPE", "fPCA", "gcv", "grid_search", "bfgs", "gradient_descent", "fe_elliptic"]
+__all__ = ["SRPDE", "GSRPDE", "QSRPDE", "PPE", "fPCA", "GCV", "FeElliptic"]
 
 
-def gcv(optimizer, edf="stochastic", mc_samples=100, seed=None):
+def GCV(optimizer, edf="stochastic", mc_samples=100, seed=None):
     args = {"mc_samples": mc_samples, "seed": -1 if seed == None else seed}
     args.update(optimizer)
     return args
 
+class FeElliptic:
+    def __init__(self, K=None, b=None, c=None, u=None):
+        self.K = K
+        self.b = b
+        self.c = c
+        self.u = u
 
-def grid_search(grid):
-    import numpy as np
-    return {"opt": "grid", "grid": np.asarray(grid)}
+    def expand(self, mesh):
+        """Expand PDE coefficients at quadrature nodes."""
+        embed_dim = mesh.dim[1]
+
+        quad_nodes = np.asarray(
+            _cpp.fem.fe_simplex_2d_p1_quadrature(mesh)
+        )
+        n_q = quad_nodes.shape[0]
+
+        sizes = {
+            "K": embed_dim * embed_dim,
+            "b": embed_dim,
+            "c": 1,
+            "u": 1,
+        }
+
+        def _expand_field(value, size):
+            print(value)
+            if value is None:
+                arr = np.zeros((n_q, size))
+            elif callable(value):
+                arr = np.asarray(value(quad_nodes))
+            else:
+                arr = np.tile(np.asarray(value).ravel(), (n_q, 1))
+
+            return arr if size > 1 else arr.ravel()
+
+        return {
+            name: _expand_field(getattr(self, name), size)
+            for name, size in sizes.items()
+        }
+
+def _is_nonparametric_term(term, env):
+    try:
+        obj = env[term]
+    except KeyError:
+        return False
+    return isinstance(obj, FeFunction)
+
+    
+def _is_formula_valid(formula, data, env):
+    tmp = _formula(formula)
+    
+    if len(tmp.lhs) != 1:
+        raise ValueError("Invalid formula: expected exactly one response term.")
+
+    # lhs must be in data
+    if tmp.lhs[0] not in data.colnames:
+        raise ValueError(
+            f"Invalid formula: term '{tmp.lhs[0]}' is not in data."
+        )
+
+    # rhs must be in data or a parametric term
+    rhs = tmp.rhs
+    unknowns = set(tmp.rhs) - set(data.colnames)
+    for term in unknowns:
+        if not _is_nonparametric_term(term, env):
+            raise ValueError(
+                f"Invalid formula: term '{term}' is not in data nor a nonparametric term."
+            )
+
+    # check that only one nonparametric term exists
+    if len(unknowns) != 1:
+        raise ValueError("Invaild formula: expected exactly one nonparametric term.")
 
 
-def bfgs(max_iter = 100, tolerance = 0.01, step = 0.01):
-    return {"opt": "bfgs", "max_iter": max_iter, "tolerance": tolerance, "step": step}
-
-
-def gradient_descent(max_iter = 100, tolerance = 0.01, step = 0.01):
-    return {"opt": "gradient_descent", "max_iter": max_iter, "tolerance": tolerance, "step": step}
-
-
-def fe_elliptic(K=None, b=None, c=None, u=None):
-    return {"K": K, "b": b, "c": c, "u": u}
+def _extract_nonparametric_term(formula, data, env):
+    tmp = _formula(formula)
+    f_candidates = [v for v in tmp.rhs if v not in data.colnames]        
+    return env[f_candidates[0]]
 
 
 class SRPDE:
     def __init__(self, formula, data, penalty=None):
-        import __main__
-
-        # parse formula and detect spatial field object
-        tmp = _formula(formula)
-        f_candidates = [v for v in tmp.rhs if v not in data.colnames]
-        if len(f_candidates) != 1:
-            raise ValueError("Expected exactly one nonparametric term.")
-        f_symbol = f_candidates[0]
-        f_obj = getattr(__main__, f_symbol, None)
-        if f_obj is not None:
-            if not isinstance(f_obj, FeFunction):
-                raise TypeError(f"Global symbol '{f_symbol}' is not a spatial field.")
-        else:
-            raise NameError(f"Global symbol '{f_symbol}' not found.")
-        self._f = f_obj  # store reference to field
-
-        if penalty == None:
+        import sys
+        main_globals = sys.modules["__main__"].__dict__
+        
+        try:
+            _is_formula_valid(formula, data, main_globals)
+        except ValueError:
+            raise
+        
+        self._f = _extract_nonparametric_term(formula, data, main_globals)
+        
+        if penalty is None:
             self._ptr = _cpp.models.SRPDE(formula, data._ptr, None)
-        else:
-            mesh = data.mesh
-            embed_dim = mesh.dim[1]
-            quad_nodes = _cpp.fem.fe_simplex_2d_p1_quadrature(mesh)
-            n_quad_nodes = quad_nodes.shape[0]
+            return
 
-            # expand PDE parameters
-            params = {}
-            fields = {
-                "K": embed_dim * embed_dim,
-                "b": embed_dim,
-                "c": 1,
-                "u": 1,
-            }
-            for name, size in fields.items():
-                value = penalty.get(name)
-                if value is None:
-                    params[name] = (
-                        np.zeros((n_quad_nodes, size))
-                        if size > 1
-                        else np.zeros((n_quad_nodes, size)).reshape(-1)
-                    )
-                else:
-                    if callable(value):
-                        params[name] = (
-                            np.asarray(value(np.asarray(quad_nodes)))
-                            if size > 1
-                            else np.asarray(value(np.asarray(quad_nodes))).reshape(-1)
-                        )
-                    else:
-                        params[name] = (
-                            np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
-                            if size > 1
-                            else np.tile(
-                                    np.asarray(value).flatten(), (n_quad_nodes, 1)
-                            ).reshape(-1)
-                        )
-
-            self._ptr = _cpp.models.SRPDE(formula, data._ptr, params)
+        params = penalty.expand(data.mesh)
+        self._ptr = _cpp.models.SRPDE(formula, data._ptr, params)
 
     def fit(self, lambda_=None, calibration_=None):
-        r = None
-        if calibration_ == None:
+        if calibration_ is None:
             self._ptr.fit(lambda_)
+            result = None
         else:
-            r = self._ptr.fit_gcv(calibration_)
+            result = self._ptr.fit_gcv(calibration_)
+
         self._f.set_coeff(self._ptr.f())
-        if r != None:
-            return r
+        return result
 
     @property
     def f(self):
@@ -130,73 +150,32 @@ class SRPDE:
 
 class GSRPDE:
     def __init__(self, formula, data, family, penalty=None):
-        import __main__
-
-        # parse formula and detect spatial field object
-        tmp = _formula(formula)
-        f_candidates = [v for v in tmp.rhs if v not in data.colnames]
-        if len(f_candidates) != 1:
-            raise ValueError("Expected exactly one nonparametric term.")
-        f_symbol = f_candidates[0]
-        f_obj = getattr(__main__, f_symbol, None)
-        if f_obj is not None:
-            if not isinstance(f_obj, FeFunction):
-                raise TypeError(f"Global symbol '{f_symbol}' is not a spatial field.")
-        else:
-            raise NameError(f"Global symbol '{f_symbol}' not found.")
-        self._f = f_obj  # store reference to field
-
-        if penalty == None:
+        import sys
+        main_globals = sys.modules["__main__"].__dict__
+        
+        try:
+            _is_formula_valid(formula, data, main_globals)
+        except ValueError:
+            raise
+        
+        self._f = _extract_nonparametric_term(formula, data, main_globals)
+        
+        if penalty is None:
             self._ptr = _cpp.models.GSRPDE(formula, data._ptr, family, None)
-        else:
-            mesh = data.mesh
-            embed_dim = mesh.dim[1]
-            quad_nodes = _cpp.fem.fe_simplex_2d_p1_quadrature(mesh)
-            n_quad_nodes = quad_nodes.shape[0]
+            return
 
-            # expand PDE parameters
-            params = {}
-            fields = {
-                "K": embed_dim * embed_dim,
-                "b": embed_dim,
-                "c": 1,
-                "u": 1,
-            }
-            for name, size in fields.items():
-                value = penalty.get(name)
-                if value is None:
-                    params[name] = (
-                        np.zeros((n_quad_nodes, size))
-                        if size > 1
-                        else np.zeros((n_quad_nodes, size)).reshape(-1)
-                    )
-                else:
-                    if callable(value):
-                        params[name] = (
-                            np.asarray(value(np.asarray(quad_nodes)))
-                            if size > 1
-                            else np.asarray(value(np.asarray(quad_nodes))).reshape(-1)
-                        )
-                    else:
-                        params[name] = (
-                            np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
-                            if size > 1
-                            else np.tile(
-                                np.asarray(value).flatten(), (n_quad_nodes, 1)
-                            ).reshape(-1)
-                        )
-
-            self._ptr = _cpp.models.GSRPDE(formula, data._ptr, family, params)
+        params = penalty.expand(data.mesh)
+        self._ptr = _cpp.models.GSRPDE(formula, data._ptr, family, params)
 
     def fit(self, lambda_=None, calibration_=None):
-        r = None
-        if calibration_ == None:
+        if calibration_ is None:
             self._ptr.fit(lambda_)
+            result = None
         else:
-            r = self._ptr.fit_gcv(calibration_)
+            result = self._ptr.fit_gcv(calibration_)
+
         self._f.set_coeff(self._ptr.f())
-        if r != None:
-            return r
+        return result
 
     @property
     def f(self):
@@ -210,76 +189,34 @@ class GSRPDE:
     def fitted(self):
         return self._ptr.fitted()
 
-    
 class QSRPDE:
     def __init__(self, formula, data, level, penalty=None):
-        import __main__
-
-        # parse formula and detect spatial field object
-        tmp = _formula(formula)
-        f_candidates = [v for v in tmp.rhs if v not in data.colnames]
-        if len(f_candidates) != 1:
-            raise ValueError("Expected exactly one nonparametric term.")
-        f_symbol = f_candidates[0]
-        f_obj = getattr(__main__, f_symbol, None)
-        if f_obj is not None:
-            if not isinstance(f_obj, FeFunction):
-                raise TypeError(f"Global symbol '{f_symbol}' is not a spatial field.")
-        else:
-            raise NameError(f"Global symbol '{f_symbol}' not found.")
-        self._f = f_obj  # store reference to field
-
-        if penalty == None:
+        import sys
+        main_globals = sys.modules["__main__"].__dict__
+        
+        try:
+            _is_formula_valid(formula, data, main_globals)
+        except ValueError:
+            raise
+        
+        self._f = _extract_nonparametric_term(formula, data, main_globals)
+        
+        if penalty is None:
             self._ptr = _cpp.models.QSRPDE(formula, data._ptr, level, None)
-        else:
-            mesh = data.mesh
-            embed_dim = mesh.dim[1]
-            quad_nodes = _cpp.fem.fe_simplex_2d_p1_quadrature(mesh)
-            n_quad_nodes = quad_nodes.shape[0]
+            return
 
-            # expand PDE parameters
-            params = {}
-            fields = {
-                "K": embed_dim * embed_dim,
-                "b": embed_dim,
-                "c": 1,
-                "u": 1,
-            }
-            for name, size in fields.items():
-                value = penalty.get(name)
-                if value is None:
-                    params[name] = (
-                        np.zeros((n_quad_nodes, size))
-                        if size > 1
-                        else np.zeros((n_quad_nodes, size)).reshape(-1)
-                    )
-                else:
-                    if callable(value):
-                        params[name] = (
-                            np.asarray(value(np.asarray(quad_nodes)))
-                            if size > 1
-                            else np.asarray(value(np.asarray(quad_nodes))).reshape(-1)
-                        )
-                    else:
-                        params[name] = (
-                            np.tile(np.asarray(value).flatten(), (n_quad_nodes, 1))
-                            if size > 1
-                            else np.tile(
-                                np.asarray(value).flatten(), (n_quad_nodes, 1)
-                            ).reshape(-1)
-                        )
-
-            self._ptr = _cpp.models.QSRPDE(formula, data._ptr, level, params)
+        params = penalty.expand(data.mesh)
+        self._ptr = _cpp.models.QSRPDE(formula, data._ptr, level, params)
 
     def fit(self, lambda_=None, calibration_=None):
-        r = None
-        if calibration_ == None:
+        if calibration_ is None:
             self._ptr.fit(lambda_)
+            result = None
         else:
-            r = self._ptr.fit_gcv(calibration_)
+            result = self._ptr.fit_gcv(calibration_)
+
         self._f.set_coeff(self._ptr.f())
-        if r != None:
-            return r
+        return result
 
     @property
     def f(self):
@@ -292,7 +229,6 @@ class QSRPDE:
     @property
     def fitted(self):
         return self._ptr.fitted()
-
 
 class PPE:
     def __init__(self, data, penalty=None):
