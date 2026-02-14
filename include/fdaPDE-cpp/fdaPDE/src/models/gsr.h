@@ -99,7 +99,9 @@ class GSRPDE {
             // \argmin_{\beta, f} [ \norm(W^{1/2} * (y - X * \beta - f_n))^2 + P_{\lambda}(f) ]
 	    solver_.update_response_and_weights(py_, pW_.asDiagonal());
             solver_.fit(std::forward<Args>(args)...);
-            mu_ = distr_->inv_link(fitted());
+            matrix_t fitted_ = solver_.Psi() * solver_.f();
+            if (n_covs_ != 0) { fitted_ += solver_.design_matrix() * solver_.beta(); }
+            mu_ = distr_->inv_link(fitted_);
             // prepare for next iteration
             double data_loss =
               (distr_->variance(mu_).array().sqrt().inverse().matrix().asDiagonal() * (y - mu_)).squaredNorm() / n_obs_;
@@ -117,11 +119,7 @@ class GSRPDE {
     int n_obs() const { return n_obs_; }
     double edf(int r = 100, int seed = random_seed) { return solver_.edf(r, seed); }
     const vector_t& response() const { return solver_.response(); }
-    vector_t fitted() const {
-        matrix_t fitted_ = solver_.Psi() * f();
-        if (n_covs_ != 0) { fitted_ += solver_.design_matrix() * beta(); }
-        return fitted_;
-    }
+    vector_t fitted() const { return mu_; }
 
     // Generalized Cross Validation index
     struct gcv_t : public ScalarFieldBase<n_lambda, gcv_t> {
