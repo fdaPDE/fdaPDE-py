@@ -42,7 +42,7 @@ void define_geoframe(nb::module_& m) {
         })
       .def(
         "areal_insert_layer",
-        [](py::GeoFrame& self, const std::string& layer, const dbl_matrix& locs, const nb::dict& data) {
+        [](py::GeoFrame& self, const std::string& layer, const std::vector<int>& locs, const nb::dict& data) {
             return self.areal_insert_layer(layer, locs, data);
         })
       .def(
