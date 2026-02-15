@@ -66,12 +66,12 @@ template <typename Model> struct fe_ml_elliptic {
         int n_dofs = Vh.n_dofs();
         double measure = D.measure();
         g_init.resize(n_dofs);
-        for (int i = 0; i < n_dofs; ++i) { g_init[i] = 1.0 / measure; }
+        for (int i = 0; i < n_dofs; ++i) { g_init[i] = std::log(1.0 / measure); }
 
         // discretize
         if (!data.isotropic) {
             // bilinear form
-            FeCoeff<local_dim, local_dim, local_dim, matrix_t> K(data.K);   // FeCoeff inguardabili, dovremmo usare Map
+            FeCoeff<local_dim, local_dim, local_dim, matrix_t> K(data.K);
             FeCoeff<local_dim, local_dim, 1, matrix_t> b(data.b);
             FeCoeff<local_dim, 1, 1, vector_t> c(data.c);
             auto a = integral(D)(dot(K * grad(f), grad(v)) + dot(b, grad(f)) * v + c * f * v);
@@ -92,10 +92,7 @@ template <typename Model> struct fe_ml_elliptic {
     }
     using init_fn = void (*)(Model&, const py::GeoFrame&, const fe_elliptic_data&, vector_t&);
     static constexpr std::array<std::tuple<int, int, init_fn>, 2> dispatch_table_ = {
-      {//{1, 1, &fe_elliptic<Model>::init_<1, 1>},
-       //{1, 2, &fe_elliptic<Model>::init_<1, 2>},
-       {2, 2, &fe_ml_elliptic<Model>::init_<2, 2>},
-       //{2, 3, &fe_elliptic<Model>::init_<2, 3>},
+      {{2, 2, &fe_ml_elliptic<Model>::init_<2, 2>},
        {3, 3, &fe_ml_elliptic<Model>::init_<3, 3>}}
     };
 };
@@ -138,15 +135,11 @@ struct DEPDE {
     using vector_t = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
     DEPDE(const py::GeoFrame& geoframe, const std::optional<nb::dict>& penalty) {
-        // if (nb::isinstance<fe_elliptic_data>(penalty)) {
         using model_t = fdapde::DEPDE<internals::fe_de_elliptic>;
         storage_.ptr = new model_t();
         storage_.destroy = [](void* p) { delete static_cast<model_t*>(p); };
         fe_ml_elliptic<model_t>::initialize(storage_.cast<model_t>(), geoframe, penalty, g_init_);
         vtable_ = ml_vtable::make_vtable<model_t>();
-        // } else {
-        //     throw std::runtime_error("Unknown penalty");
-        // }
     }
 
     void fit(double lambda, const nb::dict& args) {

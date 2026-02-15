@@ -81,9 +81,7 @@ class Mesh {
     }
     using alloc_fn = void (Mesh::*)(const double_mtx&, const int_mtx&, const int_mtx&);
     static constexpr std::array<std::tuple<int, int, alloc_fn>, 3> alloc_table_ = {
-      {// std::make_tuple(1, 1, &Mesh::alloc_<1, 1>),
-       // std::make_tuple(1, 2, &Mesh::alloc_<1, 2>),
-       std::make_tuple(2, 2, &Mesh::alloc_<2, 2>),
+      {std::make_tuple(2, 2, &Mesh::alloc_<2, 2>),
        std::make_tuple(2, 3, &Mesh::alloc_<2, 3>),
        std::make_tuple(3, 3, &Mesh::alloc_<3, 3>)}
     };
@@ -108,7 +106,7 @@ class Mesh {
     int        n_cells() const { return vtable_.n_cells(storage_); }
     int        n_nodes() const { return vtable_.n_nodes(storage_); }
     int        n_faces() const { return vtable_.n_faces(storage_); }
-    double_mtx nodes()   const { return vtable_.nodes(storage_);   }   // NB: qui dovremmo ritornare references
+    double_mtx nodes()   const { return vtable_.nodes(storage_);   }
     int_mtx    cells()   const { return vtable_.cells(storage_);   }
     int_mtx    faces()   const { return vtable_.faces(storage_);   }
     double_mtx bbox()    const { return vtable_.bbox(storage_);    }
@@ -121,43 +119,6 @@ class Mesh {
     template <int LocalDim, int EmbedDim> fdapde::Triangulation<LocalDim, EmbedDim>& cast() {
         return storage_.cast<fdapde::Triangulation<LocalDim, EmbedDim>>();
     }
-
-    // void mark_cells(int marker, const std::vector<bool>& mask) {
-    //     vtable_.mark_cells(marker, [&](const auto& cell) { return mask[cell.id()]; });
-    // }
-
-    //  // random sample in triangulation
-    //  double_mtx sample(int n_samples, int seed = random_seed) const { return triangulation_.sample(n_samples, seed);
-    //  }
-    //  // cell marker handling
-    //  void clear_cells_markers() { triangulation_.clear_cell_markers(); }
-    //  const std::vector<int>& cells_markers() const { return triangulation_.cells_markers(); }
-    //  void mark_cells(int marker, const std::vector<bool>& mask) {
-    //      triangulation_.mark_cells(marker, [&](const auto& cell) { return mask[cell.id()]; });
-    //  }
-    //  // all indices of cells having marker = m
-    //  std::vector<int> filter_cells_by_marker(int m) const {
-    //      std::vector<int> cell_ids;
-    //      if (!triangulation_.cells_markers().empty()) {
-    //          for (int i = 0, n = triangulation_.n_cells(); i < n; ++i) {
-    //              if (triangulation_.cells_markers()[i] == m) { cell_ids.push_back(i); }
-    //          }
-    //      }
-    //      return cell_ids;
-    //  }
-    //  // cell properties
-    //  const auto& cell_coords(int cell_id) { return triangulation_.cell(cell_id).nodes(); }
-    //  double cell_measure(int cell_id) const { return triangulation_.cell(cell_id).measure(); }
-    //  double_mtx cell_bbox(int cell_id) {
-    //      auto [ll, ur] = triangulation_.cell(cell_id).bounding_box();
-    // 	double_mtx bbox(2, embed_dim);
-    // 	bbox.row(0) = ll;
-    // 	bbox.row(1) = ur;
-    //      return bbox;
-    //  }
-    //  node_t cell_barycenter(int cell_id)   const { return triangulation_.cell(cell_id).barycenter(); }
-    //  node_t cell_circumcenter(int cell_id) const { return triangulation_.cell(cell_id).circumcenter(); }
-    //  double cell_diameter(int cell_id) const { return triangulation_.cell(cell_id).diameter(); }
 };
   
 }   // namespace py

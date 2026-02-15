@@ -48,7 +48,6 @@ template <typename Model> struct fe_lr_elliptic {
         return;
     }
    private:
-    // problem setup for a diffusion-advection-reaction operator: -div[K * \nabla f] + b \cdot \nabla f + c * f
     template <int local_dim, int embed_dim>
     static void init_(Model& model, std::string colname, const py::GeoFrame& geoframe) {
         using Triangulation = fdapde::Triangulation<local_dim, embed_dim>;
@@ -69,10 +68,7 @@ template <typename Model> struct fe_lr_elliptic {
     }
     using init_fn = void (*)(Model&, std::string colname, const py::GeoFrame&);
     static constexpr std::array<std::tuple<int, int, init_fn>, 2> dispatch_table_ = {
-      {//{1, 1, &fe_elliptic<Model>::init_<1, 1>},
-       //{1, 2, &fe_elliptic<Model>::init_<1, 2>},
-       {2, 2, &fe_lr_elliptic<Model>::init_<2, 2>},
-       //{2, 3, &fe_elliptic<Model>::init_<2, 3>},
+      {{2, 2, &fe_lr_elliptic<Model>::init_<2, 2>},
        {3, 3, &fe_lr_elliptic<Model>::init_<3, 3>}}
     };
 };  
@@ -126,7 +122,7 @@ class fPCA {
         vtable_.fit(storage_, rank, lambda_grid);
     }
     // observers
-    const matrix_t& scores() const { return vtable_.scores(storage_); }     // scoring matrix
+    const matrix_t& scores() const { return vtable_.scores(storage_); }       // scoring matrix
     const matrix_t& loadings() const { return vtable_.loadings(storage_); }   // loading matrix
     matrix_t fitted() const { return vtable_.fitted(storage_); }
     const std::vector<double>& loadings_norm() const { return vtable_.loadings_norm(storage_); }

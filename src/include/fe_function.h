@@ -88,11 +88,10 @@ class FeFunction {
         n_dofs_ = fe_space_.cast<FeSpace_>().n_dofs();
     }
     using alloc_fn = void (FeFunction::*)(py::Mesh&);
-    static constexpr std::array<std::tuple<int, int, alloc_fn>, 2> alloc_table_ = { // primo int, dimensione della mesh, sempre 2, secondo int, ordine degli elementi P
-      {// std::make_tuple(1, 1, &Mesh::alloc_<1, 1>),
-       // std::make_tuple(1, 2, &Mesh::alloc_<1, 2>),
-	std::make_tuple(2, 1, &FeFunction::alloc_<2, 2, FeP<1, 1>>), // ---------- qui vedi come il numero di istanziazioni esplode, bisogna rimuovere questi template che non portano a nessun vantaggio computazionale
-	std::make_tuple(2, 2, &FeFunction::alloc_<2, 2, FeP<2, 1>>)}
+    // mesh dimension - elemet order map
+    static constexpr std::array<std::tuple<int, int, alloc_fn>, 2> alloc_table_ = { 
+      {std::make_tuple(2, 1, &FeFunction::alloc_<2, 2, FeP<1, 1>>),
+       std::make_tuple(2, 2, &FeFunction::alloc_<2, 2, FeP<2, 1>>)}
     };  
    public:
     FeFunction() noexcept = default;
@@ -114,16 +113,6 @@ class FeFunction {
     double l2_norm() const { return vtable_.l2_norm(storage_); }
     double h1_squared_norm() const { return vtable_.h1_squared_norm(storage_); }
     double h1_norm() const { return vtable_.h1_norm(storage_); }
-    // integration
-    // double cell_integrate_on(int marker) const {
-    //     if (marker == BoundaryAll) {
-    //         return fe_function_.integrate_on(
-    //           fe_space_.triangulation().cells_begin(), fe_space_.triangulation().cells_end());
-    //     } else {
-    //         return fe_function_.integrate_on(
-    //           fe_space_.triangulation().cells_begin(marker), fe_space_.triangulation().cells_end(marker));
-    //     }
-    // }
     int n_dofs() const { return n_dofs_; }
     // modifiers
     void set_coeff(const vector_t& coeff) { vtable_.set_coeff(storage_, coeff); }

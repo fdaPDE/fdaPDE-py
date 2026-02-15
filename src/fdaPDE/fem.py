@@ -143,11 +143,8 @@ class FeFunction:
         from shapely.geometry import Polygon, Point
         from IPython.display import HTML
         
-        # --------------------------------------------------
-        # Input checks
         if boundary_nodes is None and domain_shape is None:
             raise ValueError("Provide either boundary_nodes or domain_shape.")
-
         if boundary_nodes is not None and domain_shape is not None:
             raise ValueError("Provide only one of boundary_nodes or domain_shape.")
 

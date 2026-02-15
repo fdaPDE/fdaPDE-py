@@ -90,15 +90,11 @@ struct SRPDE {
 
     SRPDE(const std::string& formula, const py::GeoFrame& geoframe, const std::optional<nb::dict>& penalty) :
         edf_cache_() {
-        // if (nb::isinstance<fe_elliptic_data>(penalty)) {
         using model_t = fdapde::SRPDE<internals::fe_ls_elliptic>;
         storage_.ptr = new model_t();
         storage_.destroy = [](void* p) { delete static_cast<model_t*>(p); };
         fe_elliptic<model_t>::initialize(storage_.cast<model_t>(), formula, geoframe, penalty);
         vtable_ = ls_vtable::make_vtable<model_t>();
-        // } else {
-        //     throw std::runtime_error("Unknown penalty");
-        // }
     }
 
     void fit(double lambda) { return vtable_.fit(storage_, lambda); }
@@ -122,15 +118,12 @@ struct GSRPDE {
       const std::string& formula, const py::GeoFrame& geoframe, const std::string& family,
       const std::optional<nb::dict>& penalty) :
         edf_cache_() {
-        // if (nb::isinstance<fe_elliptic_data>(penalty)) {
         using model_t = fdapde::GSRPDE<internals::fe_ls_elliptic>;
         storage_.ptr = new model_t();
         storage_.destroy = [](void* p) { delete static_cast<model_t*>(p); };
         fe_elliptic<model_t>::initialize(storage_.cast<model_t>(), formula, geoframe, penalty);
         vtable_ = ls_vtable::make_vtable<model_t>();
-        // } else {
-        //     throw std::runtime_error("Unknown penalty");
-        // }
+	
         if (family == "bernoulli"  ) { storage_.cast<model_t>().set_family(bernoulli_distribution());   }
         if (family == "poisson"    ) { storage_.cast<model_t>().set_family(poisson_distribution());     }
         if (family == "exponential") { storage_.cast<model_t>().set_family(exponential_distribution()); }
@@ -157,15 +150,12 @@ struct QSRPDE {
     QSRPDE(
       const std::string& formula, const py::GeoFrame& geoframe, double alpha, const std::optional<nb::dict>& penalty) :
         edf_cache_() {
-        // if (nb::isinstance<fe_elliptic_data>(penalty)) {
         using model_t = fdapde::QSRPDE<internals::fe_ls_elliptic>;
         storage_.ptr = new model_t();
         storage_.destroy = [](void* p) { delete static_cast<model_t*>(p); };
         fe_elliptic<model_t>::initialize(storage_.cast<model_t>(), formula, geoframe, penalty);
         vtable_ = ls_vtable::make_vtable<model_t>();
-        // } else {
-        //     throw std::runtime_error("Unknown penalty");
-        // }
+
 	storage_.cast<model_t>().set_level(alpha);
     }
 

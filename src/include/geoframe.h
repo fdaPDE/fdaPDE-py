@@ -38,6 +38,7 @@ class GeoFrame {
   
     struct vtable {
         void (*point_insert_layer)(erased_storage&, const std::string&, const Eigen::Matrix<double, Dynamic, Dynamic>&);
+        void (*areal_insert_layer)(erased_storage&, const std::string&, const std::vector<int>&); 
         void (*point_load_vec_dbl64)(erased_storage&, std::string, std::string, const std::vector<double>&);
         void (*point_load_vec_int32)(erased_storage&, std::string, std::string, const std::vector<int>&);
         void (*point_load_vec_str  )(erased_storage&, std::string, std::string, const std::vector<std::string>&);
@@ -78,17 +79,20 @@ class GeoFrame {
             v.point_insert_layer = [](erased_storage& s, const std::string& l, const dbl_matrix& locs) {
                 s.cast<GeoFrame_>().template insert_scalar_layer<POINT>(l, locs);
             };
+            v.areal_insert_layer = [](erased_storage& s, const std::string& l, const std::vector<int>& regions) {
+                s.cast<GeoFrame_>().template insert_scalar_layer<POLYGON>(l, regions);
+            }; 
             v.point_load_vec_dbl64 =
               [](erased_storage& s, std::string l, std::string f, const std::vector<double>& d) {
-                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);// questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);
               };
             v.point_load_vec_int32 =
               [](erased_storage& s, std::string l, std::string f, const std::vector<int>& d) {
-                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);// questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);
               };
             v.point_load_vec_str =
               [](erased_storage& s, std::string l, std::string f, const std::vector<std::string>& d) {
-                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);// questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                  geo_cast<POINT>(s.cast<GeoFrame_>()[l]).load_vec(f, d);
               };
             v.layer_category = [](const erased_storage& s, std::string l) {
                 return static_cast<int>(s.cast<GeoFrame_>()[l].category()[0]);
@@ -98,7 +102,7 @@ class GeoFrame {
                 fdapde::ltype ltype = gf[l].category()[0];
                 int dtype_ = 0;
                 if (ltype == ltype::areal) {
-                    dtype_ = int(geo_cast<POLYGON>(gf[l]).data().field_descriptor(c).type_id()); // questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                    dtype_ = int(geo_cast<POLYGON>(gf[l]).data().field_descriptor(c).type_id());
                 }
                 if (ltype == ltype::point) {
                     dtype_ = int(geo_cast<POINT  >(gf[l]).data().field_descriptor(c).type_id());
@@ -112,7 +116,7 @@ class GeoFrame {
                 const GeoFrame_& gf = s.cast<GeoFrame_>();
                 fdapde::ltype ltype = gf[l].category()[0];
                 std::vector<std::string> cols_;
-                if (ltype == ltype::areal) { cols_ = geo_cast<POLYGON>(gf[l]).data().colnames(); } // questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                if (ltype == ltype::areal) { cols_ = geo_cast<POLYGON>(gf[l]).data().colnames(); }
                 if (ltype == ltype::point) { cols_ = geo_cast<POINT>  (gf[l]).data().colnames(); }
                 return cols_;
             };
@@ -120,7 +124,7 @@ class GeoFrame {
                 const GeoFrame_& gf = s.cast<GeoFrame_>();
                 fdapde::ltype ltype = gf[l].category()[0];
                 int rows = 0;
-                if (ltype == ltype::areal) { rows = geo_cast<POLYGON>(gf[l]).rows(); } // questa operazione non dipende dal tipo geometrico, perchè devo fare questo cast??
+                if (ltype == ltype::areal) { rows = geo_cast<POLYGON>(gf[l]).rows(); }
                 if (ltype == ltype::point) { rows = geo_cast<POINT>  (gf[l]).rows(); }
                 return rows;
             };
@@ -214,9 +218,7 @@ class GeoFrame {
         return storage_.ptr;
     }
     static constexpr std::array<std::tuple<int, int, void* (GeoFrame::*)(Mesh&)>, 3> mesh_constructor_table_ = {
-      {// std::make_tuple(1, 1, &Mesh::alloc_<1, 1>),
-       // std::make_tuple(1, 2, &Mesh::alloc_<1, 2>),
-       std::make_tuple(2, 2, &GeoFrame::construct_from_mesh_<2, 2>),
+      {std::make_tuple(2, 2, &GeoFrame::construct_from_mesh_<2, 2>),
        std::make_tuple(2, 3, &GeoFrame::construct_from_mesh_<2, 3>),
        std::make_tuple(3, 3, &GeoFrame::construct_from_mesh_<3, 3>)}
     };
@@ -250,9 +252,7 @@ class GeoFrame {
                             const std::vector<std::string>&)>,
       3>
       geoframe_constructor_table_ = {
-        {// std::make_tuple(1, 1, &Mesh::alloc_<1, 1>),
-         // std::make_tuple(1, 2, &Mesh::alloc_<1, 2>),
-         std::make_tuple(2, 2, &GeoFrame::construct_from_geoframe_<2, 2>),
+        {std::make_tuple(2, 2, &GeoFrame::construct_from_geoframe_<2, 2>),
          std::make_tuple(2, 3, &GeoFrame::construct_from_geoframe_<2, 3>),
          std::make_tuple(3, 3, &GeoFrame::construct_from_geoframe_<3, 3>)}
     };
@@ -276,7 +276,7 @@ class GeoFrame {
         auto [ld, ed] = mesh.dim();
         construct_(ld, ed, mesh_constructor_table_, mesh);
     }
-    // construct from layer, questa semantica non mi piace, in teoria dovrei poter essere in grado di creare un geoframe vuoto, costruire il layer subsettatto e inserire il layer subsettato
+    // construct from layer
     GeoFrame(
       const py::GeoFrame& geoframe, const std::string& layer_name, const std::vector<int>& rows,
       const std::vector<std::string>& cols) : mesh_(std::addressof(geoframe.mesh())) {
@@ -324,38 +324,35 @@ class GeoFrame {
         };
         copy_.template operator()<int_t>("int_data");
         copy_.template operator()<dbl_t>("dbl_data");
-        // copy_.template operator()<str_t>("str_data"); ----------------- TODO, slow path
     }
-    // void areal_insert_layer(
-    //   const std::string& layer_name, const std::vector<int>& regions, const nb::dict& data) {
-    //     auto& l = data_.template insert_scalar_layer<POLYGON>(layer_name, regions);
-    //     // copy input python data
-    //     auto copy_ = [&]<typename T>(const std::string& field) {
-    //         if (data.contains(field)) {
-    //             nb::dict dct = nb::cast<nb::dict>(data[field.data()]);
-    //             for (const auto& item : dct) {
-    //                 std::string name = nb::cast<std::string>(item.first);
-    //                 nb::list py_data = nb::cast<nb::list>(item.second);
-    //                 // convert into a cpp vector
-    //                 std::vector<T> vec;
-    //                 vec.reserve(py_data.size());
-    //                 for (auto v : py_data) { vec.push_back(nb::cast<T>(v)); }
-    //                 // load data
-    //                 l.load_vec(name, vec);
-    //             }
-    //         }
-    //     };
-    //     copy_.template operator()<int_t>("int_data");
-    //     copy_.template operator()<dbl_t>("dbl_data");
-    //     copy_.template operator()<str_t>("str_data");
-    // }
+    void areal_insert_layer(const std::string& layer, const std::vector<int>& regions, const nb::dict& data) {
+        vtable_.areal_insert_layer(storage_, layer, regions);
+        // copy input python data
+        auto copy_ = [&]<typename T>(const std::string& field) {
+            if (data.contains(field)) {
+                nb::dict dct = nb::cast<nb::dict>(data[field.data()]);
+                for (const auto& item : dct) {
+                    std::string py_name = nb::cast<std::string>(item.first);
+                    auto arr = nb::cast<nb::ndarray<T, nb::any_contig>>(item.second);
+
+                    std::vector<T> vec;
+                    vec.reserve(arr.size());
+
+                    auto* ptr = arr.data();
+                    std::copy(ptr, ptr + arr.size(), std::back_inserter(vec));
+
+                    if constexpr (std::is_same_v<T, dbl_t>) {
+                        vtable_.point_load_vec_dbl64(storage_, layer, py_name, vec);
+                    }
+                }
+            }
+        };
+        copy_.template operator()<int_t>("int_data");
+        copy_.template operator()<dbl_t>("dbl_data");
+    }
     void load_shp(const std::string& layer_name, const std::string& filename) {
         vtable_.load_shp(storage_, layer_name, filename);
     }
-    // template <typename T>
-    // void insert(const std::string& layer_name, const std::string& colname, const std::vector<T>& data) {
-    //     data_[layer_name].add_column(colname, data);
-    // }
     void blk_insert_flt64(
       const std::string& layer_name, const std::string& colname, const Eigen::Matrix<double, Dynamic, Dynamic>& data) {
         vtable_.blk_insert_flt64(storage_, layer_name, colname, data);
@@ -364,21 +361,6 @@ class GeoFrame {
       const std::string& layer_name, const std::string& colname, const Eigen::Matrix<int, Dynamic, Dynamic>& data) {
         vtable_.blk_insert_int32(storage_, layer_name, colname, data);
     }
-
-    // template <typename T>
-    // void assign(
-    //   const std::string& layer_name, const std::vector<int>& rows, const std::string& column,
-    //   const std::vector<T>& values) {
-    //     fdapde::ltype ltype = data_[layer_name].category()[0];
-    //     auto assign_ = [&]<typename GeoInfo>(GeoInfo, geoframe_t& gf) {
-    //         auto row_filter =
-    //           geo_cast<GeoInfo>(gf[layer_name]).select(rows.begin(), rows.end()).template col<T>(column);
-    //         for (int i = 0, n = rows.size(); i < n; ++i) { row_filter(i, 0) = values[i]; }
-    //     };
-    //     if (ltype == ltype::point) { assign_(POINT   {}, data_); }
-    // 	if (ltype == ltype::areal) { assign_(POLYGON {}, data_); }
-    // }
-
     std::vector<double>
     access_flt64(const std::string& layer_name, const std::vector<int>& rows, const std::string& column) const {
         return vtable_.access_dbl64(storage_, layer_name, rows, column);
@@ -391,7 +373,6 @@ class GeoFrame {
     access_str  (const std::string& layer_name, const std::vector<int>& rows, const std::string& column) const {
         return vtable_.access_str  (storage_, layer_name, rows, column);
     }
-
     // in all these operations we must cast to a geo_type, but these operations are NOT geometric aware.... correct
     int ltype(const std::string& layer_name) const { return vtable_.layer_category(storage_, layer_name); }
     int dtype(const std::string& layer_name, const std::string& colname) const {
@@ -402,31 +383,10 @@ class GeoFrame {
     }
     int cols(const std::string& layer_name) const { return colnames(layer_name).size(); }
     int rows(const std::string& layer_name) const { return vtable_.rows(storage_, layer_name); }
-  
-    // std::vector<std::string> laynames() const { return data_.laynames(); }
-  
     // areal layer
     std::vector<nb::dict> areal_polygons(const std::string& layer_name) const {
         return vtable_.areal_polygons(storage_, layer_name);
     }
-    // Eigen::Matrix<int, Dynamic, Dynamic> incidence_matrix(const std::string& layer_name) const {
-    //     const auto& layer = geo_index_cast<0, POLYGON>(data_[layer_name]);
-
-    //     const BinaryMatrix<Dynamic, Dynamic>& incidence_matrix = layer.incidence_matrix();
-    // 	int rows = incidence_matrix.rows();
-    // 	int cols = incidence_matrix.cols();
-    //     Eigen::Matrix<int, Dynamic, Dynamic> mat(rows, cols);
-    //     for (int i = 0; i < rows; ++i) {
-    //         for (int j = 0; j < cols; ++j) {
-    //             if (incidence_matrix(i, j))
-    //                 mat(i, j) = 1;
-    //             else
-    //                 mat(i, j) = 0;
-    //         }
-    //     }
-    //     return mat;
-    // }
-
     // point layer
     Eigen::Matrix<double, Dynamic, Dynamic> point_coordinates(const std::string& layer_name) const {
         return vtable_.point_coordinates(storage_, layer_name);

@@ -89,7 +89,7 @@ template <typename Model> struct fe_elliptic {
         TestFunction  v(Vh);
         if (!data.isotropic) {
             // bilinear form
-            FeCoeff<local_dim, local_dim, local_dim, matrix_t> K(data.K);   // FeCoeff inguardabili, dovremmo usare Map
+            FeCoeff<local_dim, local_dim, local_dim, matrix_t> K(data.K);
             FeCoeff<local_dim, local_dim, 1, matrix_t> b(data.b);
             FeCoeff<local_dim, 1, 1, vector_t> c(data.c);
             auto a = integral(D)(dot(K * grad(f), grad(v)) + dot(b, grad(f)) * v + c * f * v);
@@ -97,7 +97,7 @@ template <typename Model> struct fe_elliptic {
             FeCoeff<local_dim, 1, 1, vector_t> u(data.u);
             auto F = integral(D)(u * v);
 
-            model.discretize(fdapde::fe_ls_elliptic(a, F).get());   // questo get inguardabile
+            model.discretize(fdapde::fe_ls_elliptic(a, F).get());
         } else {
             auto a = integral(D)(dot(grad(f), grad(v)));
             ScalarField<local_dim, decltype([](const vector_t&) { return 0; })> u;
@@ -110,10 +110,7 @@ template <typename Model> struct fe_elliptic {
     }
     using init_fn = void (*)(Model&, const std::string&, const py::GeoFrame&, const fe_elliptic_data&);
     static constexpr std::array<std::tuple<int, int, init_fn>, 2> dispatch_table_ = {
-      {//{1, 1, &fe_elliptic<Model>::init_<1, 1>},
-       //{1, 2, &fe_elliptic<Model>::init_<1, 2>},
-       {2, 2, &fe_elliptic<Model>::init_<2, 2>},
-       //{2, 3, &fe_elliptic<Model>::init_<2, 3>},
+      {{2, 2, &fe_elliptic<Model>::init_<2, 2>},
        {3, 3, &fe_elliptic<Model>::init_<3, 3>}}
     };
 };

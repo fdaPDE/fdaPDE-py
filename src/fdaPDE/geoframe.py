@@ -225,10 +225,8 @@ def _gf_cpp_assign(
 
     assign_map = {
         data_t.FLT64: (ptr.flt64_assign, np.float64),
-        # data_t.FLT32: (ptr.flt32_assign, np.float32),
-        # data_t.INT64: (ptr.int64_assign, np.int64  ),
         data_t.INT32: (ptr.int32_assign, np.int32),
-        data_t.STR: (ptr.str_assign, np.str_),
+        data_t.STR:   (ptr.str_assign, np.str_),
     }
     assign, typ = assign_map[dtype]
     # if scalar, keep scalar, otherwise np-cast
@@ -424,8 +422,6 @@ class _point_layer(_data_layer):
                     linewidth=1,
                 )
             ax[i].set_title(colname)
-            # ax[i].set_xlabel(xlabel[i]) ##################### check
-            # ax[i].set_ylabel(ylabel[i])
             ax[i].set_aspect(aspect)
 
             # set colorbar
@@ -467,7 +463,7 @@ class _point_layer(_data_layer):
 
         # plot domain boundary
         if boundary_nodes is not None:
-            boundary_nodes = np.asarray(boundary_nodes)[:, [1, 0]]  # lat, lon
+            boundary_nodes = np.asarray(boundary_nodes)[:, [1, 0]]
             domain_fg = folium.FeatureGroup(name="domain", show=True)
             folium.Polygon(
                 locations=boundary_nodes,
