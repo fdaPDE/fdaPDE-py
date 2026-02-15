@@ -41,6 +41,11 @@ void define_geoframe(nb::module_& m) {
             return self.point_insert_layer(layer, locs, data);
         })
       .def(
+        "areal_insert_layer",
+        [](py::GeoFrame& self, const std::string& layer, const dbl_matrix& locs, const nb::dict& data) {
+            return self.areal_insert_layer(layer, locs, data);
+        })
+      .def(
         "blk_insert_int32",
         [](py::GeoFrame& self, std::string layer, std::string column, const int_matrix& data) {
             self.blk_insert_int32(layer, column, data);

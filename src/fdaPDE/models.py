@@ -51,7 +51,6 @@ class FeElliptic:
         }
 
         def _expand_field(value, size):
-            print(value)
             if value is None:
                 arr = np.zeros((n_q, size))
             elif callable(value):

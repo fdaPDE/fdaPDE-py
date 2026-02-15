@@ -198,7 +198,7 @@ std::pair<Eigen::SparseMatrix<double>, Eigen::Matrix<double, Dynamic, 1>> areal_
             }
         }
         // divide each \int_{D_i} \psi_j by the measure of region D_i
-        for (int j = 0; j < head; ++j) { triplet_list[tail + j].value() /= Di; }
+        for (int j = 0; j < head; ++j) { triplet_list[tail + j].value() /*/= Di*/; } // commented to emulate average_data=false
         D[k] = Di;
         tail += head;
     }

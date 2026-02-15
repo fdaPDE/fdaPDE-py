@@ -73,7 +73,7 @@ class GeoFrame:
                 iterator = zip(colnames, (data[:, i] for i in range(n_col)))
             elif hasattr(data, "columns") and hasattr(
                 data, "to_numpy"
-            ):  # duck typing, but do with lazy loading
+            ):  # duck typing, but todo with lazy loading
                 iterator = ((c, np.array(data[c])) for c in data.columns)
             else:
                 raise TypeError("Unsupported data type.")

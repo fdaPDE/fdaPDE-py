@@ -55,7 +55,7 @@ struct fe_ls_elliptic {
         } else {   // areal sampling
             const auto& [psi, measure_vect] = areal_eval_(locs);
             Psi_ = psi;
-            D_ = measure_vect.asDiagonal();
+            D_ = vector_t::Ones(n_locs_).asDiagonal(); // measure_vect.asDiagonal(); ----- emulates AVRAGE_DATA = FALSE
         }
         return;
     }
@@ -77,7 +77,7 @@ struct fe_ls_elliptic {
             const auto& spatial_index = geo_index_cast<0, POLYGON>(gf[0]);
             const auto& [psi, measure_vect] = areal_eval_(spatial_index.incidence_matrix());
             Psi_ = psi;
-            D_ = measure_vect.asDiagonal();
+            D_ = vector_t::Ones(n_locs_).asDiagonal(); // measure_vect.asDiagonal(); ----- emulates AVRAGE_DATA = FALSE
             break;
         }
         }

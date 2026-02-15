@@ -84,10 +84,10 @@ template <typename Model> struct fe_ml_elliptic {
             auto a = integral(D)(dot(grad(f), grad(v)));
             ScalarField<local_dim, decltype([](const vector_t&) { return 0; })> u;
             auto F = integral(D)(u * v);
-	    
+
             model.discretize(fdapde::fe_de_elliptic(a, F).get());
         }
-	model.analyze_data(gf);
+        model.analyze_data(gf);
         return;
     }
     using init_fn = void (*)(Model&, const py::GeoFrame&, const fe_elliptic_data&, vector_t&);
