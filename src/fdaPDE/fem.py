@@ -266,17 +266,4 @@ class FeFunction:
         colormap.add_to(m)
         folium.LayerControl(collapsed=False).add_to(m)
 
-        html = m.get_root().repr_html()
-        HTML(f"""
-        <div style="
-            width: 100%;
-            height: 600px;
-            margin: 0;
-            padding: 0;
-            overflow: hidden;
-        ">
-        {html}
-        </div>
-        """)
-
         return m
