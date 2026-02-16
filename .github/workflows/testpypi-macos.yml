@@ -3,7 +3,7 @@ name: Build macOS wheels (TestPyPI)
 on:
   push:
     tags:
-      - "v*-test*"   # only run on tags for experimental versions
+      - "v*"
 
 jobs:
   build_wheels:
