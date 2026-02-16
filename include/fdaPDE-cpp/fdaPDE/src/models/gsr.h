@@ -160,7 +160,7 @@ class GSRPDE {
             }
             double dor = n_ - (q_ + edf_cache_.at(lambda_vec));   // residual degrees of freedom
 	    // compute total deviance
-            vector_t mu = model_->distr_->inv_link(model_->fitted());
+            vector_t mu = model_->fitted();
             return (n_ / std::pow(dor, 2)) * model_->distr_->deviance(mu, model_->y_);
         }
         // observers

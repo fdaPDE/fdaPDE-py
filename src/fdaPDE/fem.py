@@ -127,6 +127,7 @@ class FeFunction:
         cmap_name="Blues",
         palette=None,
         opacity=1.0,
+        border_weight=2,
         layer_name="f",
         zoom_start=7,
         tiles="cartodb positron",
@@ -142,7 +143,7 @@ class FeFunction:
         import geopandas as gpd
         from shapely.geometry import Polygon, Point
         from IPython.display import HTML
-        
+
         if boundary_nodes is None and domain_shape is None:
             raise ValueError("Provide either boundary_nodes or domain_shape.")
         if boundary_nodes is not None and domain_shape is not None:
@@ -245,7 +246,10 @@ class FeFunction:
 
         if boundary_nodes is not None:
             folium.Polygon(
-                locations=boundary_nodes[:, [1, 0]], color="black", weight=2, fill=False
+                locations=boundary_nodes[:, [1, 0]],
+                color="black",
+                weight=border_weight,
+                fill=False,
             ).add_to(domain_fg)
         else:
             folium.GeoJson(
@@ -253,7 +257,7 @@ class FeFunction:
                 style_function=lambda x: {
                     "fillColor": "none",
                     "color": "black",
-                    "weight": 2,
+                    "weight": border_weight,
                 },
             ).add_to(domain_fg)
 
@@ -262,7 +266,7 @@ class FeFunction:
         colormap.add_to(m)
         folium.LayerControl(collapsed=False).add_to(m)
 
-        html = m.get_root()._repr_html_()
+        html = m.get_root().repr_html()
         HTML(f"""
         <div style="
             width: 100%;
