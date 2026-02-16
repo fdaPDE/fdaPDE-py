@@ -8,7 +8,7 @@ build-backend = "scikit_build_core.build"
 
 [project]
 name = "fdaPDE"
-version = "2.0.0rc5"
+version = "2.0.0rc6"
 description="The python wrapper to the fdaPDE library for physics-informed spatial and functional data analysis."
 readme = "README.md"
 dependencies = ["numpy"]
