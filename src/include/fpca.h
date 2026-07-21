@@ -35,13 +35,13 @@ template <typename Model> struct fe_lr_elliptic {
     using vector_t = Eigen::Matrix<double, Eigen::Dynamic, 1>;
 
     // discretization dispatch loop
-    static void initialize(Model& model, std::string colname, const py::GeoFrame& geoframe) {
+    static void initialize(Model& model, std::string colname, const py::GeoFrame& geoframe, const matrix_t& K_data) {
         int local_dim = geoframe.local_dim();
         int embed_dim = geoframe.embed_dim();
 
         for (auto [ld, ed, init] : dispatch_table_) {
             if (local_dim == ld && embed_dim == ed) {
-                init(model, colname, geoframe);
+                init(model, colname, geoframe, K_data);
                 return;
             }
         }
@@ -49,7 +49,7 @@ template <typename Model> struct fe_lr_elliptic {
     }
    private:
     template <int local_dim, int embed_dim>
-    static void init_(Model& model, std::string colname, const py::GeoFrame& geoframe) {
+    static void init_(Model& model, std::string colname, const py::GeoFrame& geoframe, const matrix_t& K_data) {
         using Triangulation = fdapde::Triangulation<local_dim, embed_dim>;
         using GeoFrame = fdapde::GeoFrame<Triangulation>;
 
@@ -58,7 +58,11 @@ template <typename Model> struct fe_lr_elliptic {
         FeSpace Vh(D, P1<1>);
         TrialFunction f(Vh);
         TestFunction  v(Vh);
-        auto a = integral(D)(dot(grad(f), grad(v)));
+
+	// diffiusion tensor ile
+	FeCoeff<local_dim, local_dim, embed_dim, matrix_t> K(K_data);
+        auto a = integral(D)(dot(K * grad(f), grad(v)));
+	
         ScalarField<local_dim, decltype([](const vector_t&) { return 0; })> u;
         auto F = integral(D)(u * v);
 
@@ -66,7 +70,7 @@ template <typename Model> struct fe_lr_elliptic {
         model.analyze_data(colname, gf);
         return;
     }
-    using init_fn = void (*)(Model&, std::string colname, const py::GeoFrame&);
+    using init_fn = void (*)(Model&, std::string colname, const py::GeoFrame&, const matrix_t&);
     static constexpr std::array<std::tuple<int, int, init_fn>, 2> dispatch_table_ = {
       {{2, 2, &fe_lr_elliptic<Model>::init_<2, 2>},
        {3, 3, &fe_lr_elliptic<Model>::init_<3, 3>}}
@@ -110,11 +114,11 @@ class fPCA {
     };
    public:
     fPCA() noexcept = default;
-    fPCA(const std::string& colname, const py::GeoFrame& geoframe) {
+    fPCA(const std::string& colname, const py::GeoFrame& geoframe, const matrix_t& K_data) {   // diffusion tensor - ile
         using model_t = fdapde::fPCA<internals::fe_ls_elliptic>;
         storage_.ptr = new model_t();
         storage_.destroy = [](void* p) { delete static_cast<model_t*>(p); };
-        fe_lr_elliptic<model_t>::initialize(storage_.cast<model_t>(), colname, geoframe);
+        fe_lr_elliptic<model_t>::initialize(storage_.cast<model_t>(), colname, geoframe, K_data);
         vtable_ = vtable::make_vtable<model_t>();
     }
     void fit(int rank, const nb::dict& args) {

@@ -250,8 +250,8 @@ class PPE:
 
 
 class fPCA:
-    def __init__(self, column, data):
-        self._ptr = _cpp.models.fPCA(column, data._ptr)
+    def __init__(self, column, data, K_data):
+        self._ptr = _cpp.models.fPCA(column, data._ptr, K_data)
 
     def fit(self, npc_, calibration_):
         self._ptr.fit(npc_, calibration_)

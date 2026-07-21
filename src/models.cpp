@@ -77,7 +77,9 @@ void define_models(nb::module_& m) {
       .def("fitted"     , [](const py::DEPDE& self) { return self.fitted(); }                                        );
 
     nb::class_<py::fPCA>(m, std::string("fPCA").c_str(), "functional Principal Component Analysis")
-      .def(nb::init<const std::string&, const py::GeoFrame&>(), nb::arg("colname"), nb::arg("data"))
+      .def(
+        nb::init<const std::string&, const py::GeoFrame&, const matrix_t&>(), nb::arg("colname"), nb::arg("data"),
+        nb::arg("K_data"))
       .def("fit", [](py::fPCA& self, int rank, const nb::dict& args) { return self.fit(rank, args); })
       .def("scores", [](const py::fPCA& self) { return self.scores(); })
       .def("loadings", [](const py::fPCA& self) { return self.fitted(); })
