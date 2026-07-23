@@ -28,7 +28,7 @@ class RSI {
     using matrix_t = Eigen::Matrix<double, Dynamic, Dynamic>;
     using vector_t = Eigen::Matrix<double, Dynamic, 1>;
     using qr_t     = Eigen::HouseholderQR<matrix_t>;
-    using svd_t = Eigen::JacobiSVD<matrix_t, Eigen::ComputeThinU | Eigen::ComputeThinV>;
+    using svd_t = Eigen::JacobiSVD<matrix_t>;
    public:
 
     RSI() noexcept =default;
